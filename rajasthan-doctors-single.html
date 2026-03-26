@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rajasthan Doctor Directory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --maroon:    #8B0C28;
+      --maroon-dk: #5E0819;
+      --maroon-lt: #F9EEF1;
+      --gold:      #C8922A;
+      --sand:      #F5F0E8;
+      --white:     #FFFFFF;
+      --ink:       #1A1410;
+      --ink-2:     #4A3F36;
+      --ink-3:     #7A6E65;
+      --border:    #E0D5C8;
+      --radius:    12px;
+      --radius-lg: 20px;
+      --shadow:    0 2px 12px rgba(26,20,16,.08);
+      --shadow-md: 0 6px 24px rgba(26,20,16,.12);
+    }
+    body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--ink); min-height: 100vh; }
+
+    /* HEADER */
+    header { background: var(--maroon-dk); color: #fff; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid var(--gold); }
+    .header-inner { max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .logo-block { display: flex; align-items: center; gap: 12px; }
+    .logo-icon { width: 38px; height: 38px; background: var(--gold); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--maroon-dk); font-weight: 700; }
+    .logo-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; letter-spacing: .3px; }
+    .logo-sub { font-size: 11px; color: rgba(255,255,255,.65); letter-spacing: .5px; text-transform: uppercase; }
+    .header-meta { font-size: 12px; color: rgba(255,255,255,.55); text-align: right; }
+
+    /* HERO */
+    .hero { background: linear-gradient(135deg, var(--maroon-dk) 0%, var(--maroon) 60%, #B5183A 100%); color: #fff; padding: 60px 24px 72px; position: relative; overflow: hidden; }
+    .hero-inner { max-width: 680px; margin: 0 auto; position: relative; z-index: 2; }
+    .hero h1 { font-family: 'Playfair Display', serif; font-size: clamp(34px, 6vw, 56px); line-height: 1.1; margin-bottom: 16px; }
+    .hero h1 span { color: var(--gold); }
+    .hero p { font-size: 16px; color: rgba(255,255,255,.8); margin-bottom: 32px; line-height: 1.6; }
+    .search-wrap { position: relative; }
+    .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 20px; color: var(--ink-3); pointer-events: none; }
+    #global-search { width: 100%; padding: 16px 20px 16px 50px; font-family: 'DM Sans', sans-serif; font-size: 16px; border: none; border-radius: var(--radius-lg); background: #fff; color: var(--ink); box-shadow: var(--shadow-md); outline: none; }
+    #global-search:focus { box-shadow: 0 0 0 3px rgba(200,146,42,.4), var(--shadow-md); }
+    .hero-pattern { position: absolute; inset: 0; z-index: 1; background-image: radial-gradient(circle, rgba(255,255,255,.04) 1px, transparent 1px); background-size: 28px 28px; }
+
+    /* FILTERS */
+    .filters-section { background: var(--white); border-bottom: 1px solid var(--border); padding: 16px 0; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+    .filter-group { display: flex; flex-direction: column; gap: 4px; min-width: 150px; flex: 1; }
+    .filter-group label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-3); }
+    .filter-group select { padding: 9px 32px 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--ink); background: var(--white); cursor: pointer; outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A6E65' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+    .filter-group select:focus { border-color: var(--maroon); box-shadow: 0 0 0 2px rgba(139,12,40,.15); }
+    .filter-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .clear-btn { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; padding: 7px 14px; border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--ink-3); cursor: pointer; transition: all .15s; }
+    .clear-btn:hover { background: var(--maroon-lt); border-color: var(--maroon); color: var(--maroon); }
+    .result-count { font-size: 13px; color: var(--ink-3); }
+
+    /* GRID */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 20px; padding: 32px 0 60px; }
+
+    /* CARD */
+    .doctor-card { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow); transition: transform .2s, box-shadow .2s; }
+    .doctor-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+    .card-top { background: linear-gradient(135deg, var(--maroon-dk), var(--maroon)); padding: 22px 22px 14px; display: flex; align-items: flex-start; gap: 14px; }
+    .card-avatar-placeholder { width: 58px; height: 58px; border-radius: 50%; border: 2px solid var(--gold); background: rgba(200,146,42,.2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--gold); font-family: 'Playfair Display', serif; font-weight: 700; }
+    .card-avatar { width: 58px; height: 58px; border-radius: 50%; border: 2px solid var(--gold); object-fit: cover; flex-shrink: 0; }
+    .card-name-block { flex: 1; }
+    .card-name { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; color: #fff; line-height: 1.25; margin-bottom: 6px; }
+    .card-spec { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; background: var(--gold); color: var(--maroon-dk); padding: 3px 9px; border-radius: 20px; }
+    .card-body { padding: 16px 22px 20px; border-top: 1px solid var(--border); }
+    .card-fields { display: flex; flex-direction: column; gap: 9px; }
+    .card-field { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+    .field-icon { font-size: 14px; margin-top: 1px; flex-shrink: 0; width: 18px; text-align: center; }
+    .field-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-3); min-width: 82px; flex-shrink: 0; margin-top: 2px; }
+    .field-value { color: var(--ink-2); line-height: 1.4; word-break: break-word; }
+
+    /* STATES */
+    .loading-state, .error-state, .no-results { text-align: center; padding: 80px 24px; color: var(--ink-3); }
+    .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--maroon); border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 20px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-icon, .no-icon { font-size: 48px; margin-bottom: 16px; }
+    .loading-state p, .error-state p, .no-results p { font-size: 15px; margin-top: 8px; }
+    .error-state h3, .no-results h3 { font-size: 20px; color: var(--ink-2); margin-bottom: 6px; }
+    .error-detail { font-size: 12px; color: var(--ink-3); margin-top: 12px; background: #f5f5f5; padding: 10px 16px; border-radius: 8px; word-break: break-all; }
+    .retry-btn { margin-top: 20px; padding: 10px 24px; background: var(--maroon); color: #fff; border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; }
+
+    /* CARD CLICKABLE */
+    .doctor-card { cursor: pointer; }
+    .card-hint { display: flex; align-items: center; justify-content: flex-end; gap: 5px; padding: 0 22px 14px; font-size: 12px; color: var(--ink-3); }
+    .card-hint span { font-size: 14px; }
+
+    /* MODAL OVERLAY */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(26,20,16,.6); z-index: 500; align-items: flex-end; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+
+    /* MODAL SHEET — slides up from bottom */
+    .modal-sheet { background: var(--white); border-radius: 24px 24px 0 0; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; animation: slideUp .25s ease; }
+    @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    /* MODAL HEADER */
+    .modal-top { background: linear-gradient(135deg, var(--maroon-dk), var(--maroon)); padding: 24px 24px 20px; position: relative; }
+    .modal-close { position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,.15); border: none; color: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+    .modal-close:hover { background: rgba(255,255,255,.25); }
+    .modal-avatar { width: 72px; height: 72px; border-radius: 50%; border: 3px solid var(--gold); background: rgba(200,146,42,.2); display: flex; align-items: center; justify-content: center; font-size: 28px; color: var(--gold); font-family: 'Playfair Display', serif; font-weight: 700; margin-bottom: 14px; }
+    .modal-avatar img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; }
+    .modal-name { font-family: 'Playfair Display', serif; font-size: 22px; color: #fff; margin-bottom: 6px; }
+    .modal-spec { display: inline-block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; background: var(--gold); color: var(--maroon-dk); padding: 4px 12px; border-radius: 20px; }
+
+    /* MODAL BODY */
+    .modal-body { padding: 20px 24px 32px; }
+    .modal-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--ink-3); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .modal-field { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-bottom: 1px solid var(--border); }
+    .modal-field:last-child { border-bottom: none; }
+    .modal-field-icon { font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; margin-top: 1px; }
+    .modal-field-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-3); min-width: 100px; flex-shrink: 0; margin-top: 3px; }
+    .modal-field-value { font-size: 15px; color: var(--ink); line-height: 1.5; word-break: break-word; }
+
+    /* RATING */
+    .card-rating { display: flex; align-items: center; gap: 6px; padding: 8px 22px 14px; border-top: 1px solid var(--border); }
+    .stars-display { display: flex; gap: 2px; }
+    .star { font-size: 14px; color: #E0D5C8; }
+    .star.filled { color: #C8922A; }
+    .rating-count { font-size: 11px; color: var(--ink-3); }
+    .rating-avg { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+
+    /* MY PROFILE MODAL */
+    .myprofile-overlay { display: none; position: fixed; inset: 0; background: rgba(26,20,16,.6); z-index: 600; align-items: center; justify-content: center; padding: 16px; }
+    .myprofile-overlay.open { display: flex; }
+    .myprofile-box { background: var(--white); border-radius: var(--radius-lg); width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); animation: popIn .2s ease; }
+    @keyframes popIn { from { transform:scale(.96);opacity:0; } to { transform:scale(1);opacity:1; } }
+    .myprofile-head { background: linear-gradient(135deg,var(--maroon-dk),var(--maroon)); padding: 20px 24px; display: flex; align-items:center; justify-content:space-between; }
+    .myprofile-head h3 { font-family:'Playfair Display',serif; font-size:18px; color:#fff; }
+    .myprofile-tabs { display: flex; gap: 4px; background: var(--sand); padding: 12px 24px 0; border-bottom: 1px solid var(--border); }
+    .myprofile-tab { padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--ink-3); border: none; background: none; font-family: 'DM Sans',sans-serif; border-bottom: 2px solid transparent; transition: all .15s; }
+    .myprofile-tab.active { color: var(--maroon); border-bottom-color: var(--maroon); font-weight: 600; }
+    .myprofile-body { padding: 20px 24px 28px; }
+    .profile-field { margin-bottom: 14px; }
+    .profile-field label { display:block; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-3); margin-bottom:5px; }
+    .profile-field input, .profile-field textarea, .profile-field select { width:100%; padding:10px 13px; border:1px solid var(--border); border-radius:var(--radius); font-family:'DM Sans',sans-serif; font-size:14px; color:var(--ink); outline:none; }
+    .profile-field input:focus, .profile-field textarea:focus { border-color:var(--maroon); }
+    .profile-field textarea { resize:vertical; min-height:80px; }
+    .btn-update { padding:11px 24px; background:var(--maroon); color:#fff; border:none; border-radius:var(--radius); font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; }
+    .btn-update:hover { background:var(--maroon-dk); }
+    .update-notice { background:#E6F1FB; border:1px solid #B5D4F4; border-radius:var(--radius); padding:10px 14px; font-size:12px; color:#185FA5; margin-bottom:16px; line-height:1.6; }
+
+    /* REVIEW MODAL */
+    .review-section { padding: 16px 24px 20px; border-top: 1px solid var(--border); }
+    .review-title { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-3); margin-bottom:12px; }
+    .review-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .review-item:last-child { border-bottom: none; }
+    .review-stars { display:flex; gap:2px; margin-bottom:4px; }
+    .review-text { font-size:14px; color:var(--ink-2); line-height:1.5; }
+    .review-meta { font-size:11px; color:var(--ink-3); margin-top:4px; }
+    .write-review { background:var(--sand); border-radius:var(--radius); padding:14px; margin-top:12px; }
+    .star-picker { display:flex; gap:4px; margin-bottom:10px; }
+    .star-btn { font-size:24px; cursor:pointer; color:#E0D5C8; transition:color .1s; background:none; border:none; padding:0; }
+    .star-btn.sel, .star-btn:hover { color:#C8922A; }
+    .review-input { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:var(--radius); font-family:'DM Sans',sans-serif; font-size:14px; resize:vertical; min-height:70px; outline:none; margin-bottom:10px; }
+    .review-input:focus { border-color:var(--maroon); }
+    .btn-submit-review { padding:9px 20px; background:var(--maroon); color:#fff; border:none; border-radius:var(--radius); font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600; cursor:pointer; }
+
+    /* FOOTER */
+    footer { background: var(--maroon-dk); color: rgba(255,255,255,.5); text-align: center; padding: 24px; font-size: 13px; }
+
+    @media (max-width: 600px) {
+      .header-inner { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .hero { padding: 40px 16px 56px; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .filter-group { min-width: 100%; }
+      .modal-sheet { border-radius: 20px 20px 0 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="logo-block">
+        <div class="logo-icon">✚</div>
+        <div>
+          <div class="logo-title">Rajasthan Doctors</div>
+          <div class="logo-sub">Medical Directory</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+        <div class="header-meta" id="header-stats" style="font-size:11px;color:rgba(255,255,255,.4)"></div>
+        <button onclick="openMyProfile()" style="padding:7px 14px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;display:none;white-space:nowrap" id="btn-myprofile">👤 My Profile</button>
+        <div id="header-meta" style="display:flex;align-items:center;gap:8px"></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <h1>Find a Doctor<br/><span>in Rajasthan</span></h1>
+      <p>A trusted directory of verified medical professionals across all districts of Rajasthan.</p>
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="global-search" placeholder="Search by name, specialization, city…" />
+      </div>
+    </div>
+    <div class="hero-pattern"></div>
+  </section>
+
+  <section class="filters-section">
+    <div class="container">
+      <div id="filter-bar" class="filter-bar"></div>
+      <div class="filter-actions">
+        <button class="clear-btn" onclick="clearFilters()">✕ Clear Filters</button>
+        <span id="result-count" class="result-count"></span>
+      </div>
+    </div>
+  </section>
+
+  <main class="container">
+    <div id="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Fetching latest doctor data…</p>
+    </div>
+    <div id="error-state" class="error-state" style="display:none">
+      <div class="error-icon">⚠</div>
+      <h3>Could not load data</h3>
+      <p id="error-msg"></p>
+      <div class="error-detail" id="error-detail"></div>
+      <button class="retry-btn" onclick="loadData()">↻ Retry</button>
+    </div>
+    <div id="cards-grid" class="cards-grid" style="display:none"></div>
+    <div id="no-results" class="no-results" style="display:none">
+      <div class="no-icon">🔍</div>
+      <h3>No doctors found</h3>
+      <p>Try adjusting your search or filters.</p>
+    </div>
+  </main>
+
+  <!-- PROFILE MODAL -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-sheet" id="modal-sheet">
+      <div class="modal-top">
+        <button class="modal-close" onclick="closeModalDirect()">✕</button>
+        <div class="modal-avatar" id="modal-avatar"></div>
+        <div class="modal-name" id="modal-name"></div>
+        <span class="modal-spec" id="modal-spec"></span>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section-title">Full Profile</div>
+        <div id="modal-fields"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MY PROFILE MODAL -->
+  <div class="myprofile-overlay" id="myprofile-overlay" onclick="closeMyProfileOnBg(event)">
+    <div class="myprofile-box" id="myprofile-box">
+      <div class="myprofile-head">
+        <h3>My Profile</h3>
+        <button onclick="closeMyProfile()" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:16px;cursor:pointer">✕</button>
+      </div>
+      <div class="myprofile-tabs">
+        <button class="myprofile-tab active" id="mpt-view"  onclick="switchProfileTab('view')">View</button>
+        <button class="myprofile-tab"         id="mpt-edit"  onclick="switchProfileTab('edit')">Edit / Update</button>
+      </div>
+      <div class="myprofile-body" id="myprofile-body">
+        <p style="color:var(--ink-3);font-size:14px">Loading your profile…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFILE MODAL WITH REVIEWS -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-sheet" id="modal-sheet">
+      <div class="modal-top">
+        <button class="modal-close" onclick="closeModalDirect()">✕</button>
+        <div class="modal-avatar" id="modal-avatar"></div>
+        <div class="modal-name" id="modal-name"></div>
+        <span class="modal-spec" id="modal-spec"></span>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section-title">Full Profile</div>
+        <div id="modal-fields"></div>
+      </div>
+      <div class="review-section" id="review-section">
+        <div class="review-title">Ratings & Reviews</div>
+        <div id="review-list"></div>
+        <div class="write-review" id="write-review-box" style="display:none">
+          <div style="font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:8px">Write a Review</div>
+          <div class="star-picker" id="star-picker">
+            <button class="star-btn" data-val="1" onclick="setStar(1)">★</button>
+            <button class="star-btn" data-val="2" onclick="setStar(2)">★</button>
+            <button class="star-btn" data-val="3" onclick="setStar(3)">★</button>
+            <button class="star-btn" data-val="4" onclick="setStar(4)">★</button>
+            <button class="star-btn" data-val="5" onclick="setStar(5)">★</button>
+          </div>
+          <textarea class="review-input" id="review-text" placeholder="Share your experience with this doctor…"></textarea>
+          <button class="btn-submit-review" onclick="submitReview()">Submit Review</button>
+        </div>
+        <div id="review-login-msg" style="font-size:13px;color:var(--ink-3);padding:10px 0;display:none">
+          <a href="auth.html" style="color:var(--maroon);font-weight:600">Sign in</a> to write a review.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="container">
+      Rajasthan Doctor Directory &nbsp;·&nbsp; Live from Google Sheets &nbsp;·&nbsp; Auto-refreshes every 30s
+    </div>
+  </footer>
+
+<script>
+// ============================================================
+//  CONFIGURATION
+// ============================================================
+const SHEET_ID   = "17qxpKmS93HTabcafybGZdez9nrSN228_cuMOUfxNOBc";
+const SHEET_NAME = "Sheet1";
+const REFRESH_MS = 30000;
+
+// ============================================================
+//  Column metadata — icons, labels, filter flag
+// ============================================================
+const FIELD_META = {
+  name:           { icon: "👤", label: "Name",           skip: true },
+  photo:          { icon: "🖼",  label: "Photo",          skip: true },
+  specialization: { icon: "🩺", label: "Specialization", filter: true },
+  specialisation: { icon: "🩺", label: "Specialisation", filter: true },
+  specialty:      { icon: "🩺", label: "Specialty",      filter: true },
+  city:           { icon: "📍", label: "City",           filter: true },
+  district:       { icon: "📍", label: "District",       filter: true },
+  hospital:       { icon: "🏥", label: "Hospital",       filter: true },
+  clinic:         { icon: "🏥", label: "Clinic",         filter: true },
+  contact:        { icon: "📞", label: "Contact" },
+  phone:          { icon: "📞", label: "Phone" },
+  mobile:         { icon: "📞", label: "Mobile" },
+  email:          { icon: "✉️",  label: "Email" },
+  fees:           { icon: "💰", label: "Fees" },
+  fee:            { icon: "💰", label: "Fee" },
+  qualification:  { icon: "🎓", label: "Qualification",  filter: true },
+  academics:      { icon: "🎓", label: "Academics",      filter: true },
+  degree:         { icon: "🎓", label: "Degree",         filter: true },
+  college:        { icon: "🏛️", label: "College",        filter: true },
+  university:     { icon: "🏛️", label: "University",     filter: true },
+  experience:     { icon: "📅", label: "Experience" },
+  address:        { icon: "🗺️",  label: "Address" },
+  timing:         { icon: "🕐", label: "Timing" },
+  timings:        { icon: "🕐", label: "Timings" },
+  availability:   { icon: "🕐", label: "Availability" },
+  gender:         { icon: "⚧",  label: "Gender" },
+  language:       { icon: "🗣", label: "Languages" },
+  languages:      { icon: "🗣", label: "Languages" },
+  registration:   { icon: "📋", label: "Reg. No." },
+  bio:            { icon: "📝", label: "About" },
+  linkedin:       { icon: "🔗", label: "LinkedIn",   social: true },
+  "twitter/x":    { icon: "🔗", label: "Twitter/X",  social: true },
+  twitter:        { icon: "🔗", label: "Twitter",    social: true },
+  facebook:       { icon: "🔗", label: "Facebook",   social: true },
+  instagram:      { icon: "📷", label: "Instagram",  social: true },
+  youtube:        { icon: "▶️",  label: "YouTube",    social: true },
+  website:        { icon: "🌐", label: "Website",    social: true },
+  practo:         { icon: "🏥", label: "Practo",     social: true },
+  "google scholar":{ icon: "📚", label: "Scholar",   social: true },
+  "photo url":    { icon: "🖼",  label: "Photo",     skip: true },
+};
+
+// ============================================================
+//  STATE
+// ============================================================
+let allDoctors = [];
+let columns    = [];
+let filterState = {};
+
+// ============================================================
+//  INIT
+// ============================================================
+document.addEventListener("DOMContentLoaded", () => {
+  // ── AUTH GATE ──
+  // Auto-inject demo session if none exists (for direct preview/testing)
+  // Remove this block when deploying to production Netlify
+  if (!sessionStorage.getItem("rdd_user")) {
+    sessionStorage.setItem("rdd_user", JSON.stringify({ name: "Guest", email: "guest@preview.com", mobile: "" }));
+  }
+  const user = sessionStorage.getItem("rdd_user");
+  if (!user) { window.location.href = "auth.html"; return; }
+
+  // Show logged-in user name in header
+  try {
+    const u = JSON.parse(user);
+    const meta = document.getElementById("header-meta");
+    meta.innerHTML = `
+      <span style="color:rgba(255,255,255,.8);font-size:13px;white-space:nowrap">👤 ${u.name}</span>
+      <span style="color:rgba(255,255,255,.3);font-size:13px">·</span>
+      <a onclick="doLogout()" style="color:rgba(255,255,255,.5);cursor:pointer;text-decoration:none;font-size:12px;white-space:nowrap">Sign out</a>`;
+    const btn = document.getElementById("btn-myprofile");
+    if (btn) btn.style.display = "block";
+  } catch(e) {}
+
+  loadData();
+  document.getElementById("global-search").addEventListener("input", renderCards);
+  setInterval(loadData, REFRESH_MS);
+});
+
+// ============================================================
+//  MY PROFILE
+// ============================================================
+function openMyProfile() {
+  const userRaw = sessionStorage.getItem("rdd_user");
+  if (!userRaw) return;
+  const user = JSON.parse(userRaw);
+
+  // Find this user's doctor record by matching email
+  const emailCol = columns.find(c => /^email$/i.test(c));
+  const myDoc    = emailCol ? allDoctors.find(d =>
+    d[emailCol] && d[emailCol].toLowerCase() === user.email.toLowerCase()
+  ) : null;
+
+  document.getElementById("myprofile-overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+  switchProfileTab("view", myDoc, user);
+}
+
+function closeMyProfile() {
+  document.getElementById("myprofile-overlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+function closeMyProfileOnBg(e) {
+  if (e.target === document.getElementById("myprofile-overlay")) closeMyProfile();
+}
+
+function switchProfileTab(tab, myDoc, user) {
+  // Get current doc/user if not passed
+  if (!myDoc && !user) {
+    const userRaw = sessionStorage.getItem("rdd_user");
+    if (!userRaw) return;
+    user = JSON.parse(userRaw);
+    const emailCol = columns.find(c => /^email$/i.test(c));
+    myDoc = emailCol ? allDoctors.find(d =>
+      d[emailCol] && d[emailCol].toLowerCase() === user.email.toLowerCase()
+    ) : null;
+  }
+
+  document.getElementById("mpt-view").classList.toggle("active", tab === "view");
+  document.getElementById("mpt-edit").classList.toggle("active", tab === "edit");
+
+  const body = document.getElementById("myprofile-body");
+
+  if (tab === "view") {
+    if (!myDoc) {
+      body.innerHTML = `
+        <div style="text-align:center;padding:32px 16px">
+          <div style="font-size:48px;margin-bottom:12px">👤</div>
+          <div style="font-size:16px;font-weight:600;color:var(--ink);margin-bottom:8px">Profile not found</div>
+          <div style="font-size:13px;color:var(--ink-3);line-height:1.6;margin-bottom:20px">
+            Your account (<strong>${escHTML(user.email)}</strong>) is not linked to any doctor profile in the directory yet.<br/><br/>
+            If you have registered as a doctor, your profile may still be pending admin approval.
+          </div>
+          <a href="register-doctor.html" style="display:inline-block;padding:10px 22px;background:var(--maroon);color:#fff;border-radius:var(--radius);font-size:14px;font-weight:600;text-decoration:none">Register as a Doctor →</a>
+        </div>`;
+      return;
+    }
+
+    // Build view from all columns
+    const skipCols = new Set(["Contact (Admin)", "Mobile Public", "Status", "Submitted At"]);
+    const nameCol  = columns.find(c => /^name$/i.test(c));
+    const specCol  = columns.find(c => /special|spec/i.test(c));
+    const photoCol = columns.find(c => /photo.*url|^photo$/i.test(c));
+
+    const name  = nameCol  ? myDoc[nameCol]  : user.name;
+    const spec  = specCol  ? myDoc[specCol]  : "";
+    const photo = photoCol ? myDoc[photoCol] : "";
+
+    const fieldsHTML = columns
+      .filter(c => !skipCols.has(c) && myDoc[c] && c !== nameCol && c !== specCol && c !== photoCol)
+      .map(c => {
+        const m   = getMeta(c);
+        const val = myDoc[c];
+        const isSocial = m.social || /^https?:\/\//i.test(val);
+        const valHTML  = isSocial
+          ? `<a href="${escHTML(val)}" target="_blank" rel="noopener" style="color:var(--blue);word-break:break-all">${escHTML(val)}</a>`
+          : escHTML(val);
+        return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px">
+          <span style="width:20px;text-align:center;flex-shrink:0">${m.icon}</span>
+          <span style="min-width:100px;flex-shrink:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-3);margin-top:2px">${escHTML(m.label||c)}</span>
+          <span style="color:var(--ink-2);line-height:1.5;word-break:break-word">${valHTML}</span>
+        </div>`;
+      }).join("");
+
+    const ini = initials(name);
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+        ${photo
+          ? `<img src="${escHTML(photo)}" style="width:60px;height:60px;border-radius:50%;border:2px solid var(--gold);object-fit:cover">`
+          : `<div style="width:60px;height:60px;border-radius:50%;border:2px solid var(--gold);background:var(--maroon-lt);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--maroon)">${ini}</div>`}
+        <div>
+          <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink)">${escHTML(name)}</div>
+          ${spec ? `<span style="display:inline-block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;background:var(--gold);color:var(--maroon-dk);padding:2px 8px;border-radius:20px;margin-top:4px">${escHTML(spec)}</span>` : ""}
+        </div>
+      </div>
+      <div>${fieldsHTML || '<p style="color:var(--ink-3);font-size:14px">No profile details found.</p>'}</div>
+      <div style="margin-top:16px;padding:12px 14px;background:var(--blue-lt);border-radius:var(--radius);font-size:12px;color:var(--blue);line-height:1.6">
+        ℹ️ To update your profile, click the <strong>Edit / Update</strong> tab. Changes will be reviewed by admin before going live.
+      </div>`;
+
+  } else if (tab === "edit") {
+    // Build edit form pre-filled with current values
+    const editableCols = ["Name","Specialization","Hospital","Position","Contact","Fees","Timing","Languages","Address","Bio","LinkedIn","Twitter/X","Facebook","Instagram","YouTube","Website","Practo","Google Scholar"];
+    const skipEdit     = new Set(["Contact (Admin)","Mobile Public","Status","Submitted At","Email"]);
+
+    const formFields = editableCols.map(col => {
+      const existing = myDoc ? (myDoc[col] || "") : "";
+      const isLong   = col === "Bio" || col === "Address";
+      return `<div class="profile-field">
+        <label>${escHTML(col)}</label>
+        ${isLong
+          ? `<textarea id="pe-${escHTML(col.replace(/\W/g,'_'))}" rows="3">${escHTML(existing)}</textarea>`
+          : `<input type="text" id="pe-${escHTML(col.replace(/\W/g,'_'))}" value="${escHTML(existing)}" placeholder="${escHTML(col)}"/>`}
+      </div>`;
+    }).join("");
+
+    body.innerHTML = `
+      <div class="update-notice">
+        ⚠️ Changes you submit here will be sent to the admin for review. Your profile will only update <strong>after admin approval</strong>.
+      </div>
+      ${formFields}
+      <button class="btn-update" onclick="submitProfileUpdate()">Submit Changes for Approval →</button>
+      <div id="update-msg" style="margin-top:12px;font-size:13px;display:none"></div>`;
+  }
+}
+
+async function submitProfileUpdate() {
+  const userRaw = sessionStorage.getItem("rdd_user");
+  if (!userRaw) return;
+  const user = JSON.parse(userRaw);
+
+  const editableCols = ["Name","Specialization","Hospital","Position","Contact","Fees","Timing","Languages","Address","Bio","LinkedIn","Twitter/X","Facebook","Instagram","YouTube","Website","Practo","Google Scholar"];
+
+  const changes = {};
+  editableCols.forEach(col => {
+    const el = document.getElementById("pe-" + col.replace(/\W/g,'_'));
+    if (el && el.value.trim()) changes[col] = el.value.trim();
+  });
+
+  if (Object.keys(changes).length === 0) {
+    showUpdateMsg("Please make at least one change before submitting.", "error"); return;
+  }
+
+  const APPS_URL = "https://script.google.com/macros/s/AKfycbwaEb_hrjLu3rGt4Rujjkn0Dd3aXiSB00Su05tPImVDl32jY2lZtw_-hhoehP4n_QXZ/exec";
+
+  try {
+    await fetch(APPS_URL, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        action:  "profile_update",
+        email:   user.email,
+        name:    user.name,
+        changes: changes
+      })
+    });
+    showUpdateMsg("✓ Your update request has been submitted! The admin will review and approve it shortly.", "success");
+  } catch(err) {
+    showUpdateMsg("Submission failed: " + err.message, "error");
+  }
+}
+
+function showUpdateMsg(msg, type) {
+  const el = document.getElementById("update-msg");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = "block";
+  el.style.color   = type === "success" ? "var(--green)" : "var(--red)";
+  el.style.background = type === "success" ? "var(--green-lt)" : "var(--red-lt)";
+  el.style.padding = "10px 14px";
+  el.style.borderRadius = "8px";
+}
+
+function doLogout() {
+  sessionStorage.removeItem("rdd_user");
+  window.location.href = "auth.html";
+}
+
+// ============================================================
+//  FETCH — uses JSON endpoint (CORS-safe from file://)
+// ============================================================
+async function loadData() {
+  // Google's gviz/tq JSON endpoint works cross-origin from file://
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) throw new Error(`Server returned HTTP ${res.status}. Make sure the sheet is published.`);
+
+    const raw = await res.text();
+
+    // Google wraps the JSON in a callback: google.visualization.Query.setResponse({...});
+    const jsonStr = raw.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
+    if (!jsonStr) throw new Error("Unexpected response from Google Sheets. Is the sheet published as CSV?");
+
+    const json = JSON.parse(jsonStr[1]);
+    if (json.status === "error") throw new Error(json.errors[0].message);
+
+    const table = json.table;
+    if (!table || !table.cols || table.cols.length === 0) throw new Error("Sheet appears empty or has no columns.");
+
+    // Extract column headers from row 0 (gviz uses col labels)
+    columns = table.cols.map(c => (c.label || c.id || "").trim()).filter(Boolean);
+
+    // Extract rows
+    allDoctors = (table.rows || []).map(row => {
+      const doc = {};
+      columns.forEach((col, i) => {
+        const cell = row.c && row.c[i];
+        doc[col] = cell && cell.v != null ? String(cell.v).trim() : "";
+      });
+      return doc;
+    }).filter(doc => Object.values(doc).some(v => v));
+
+    const ts = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    const statsEl = document.getElementById("header-stats");
+    if (statsEl) statsEl.textContent = `${allDoctors.length} doctors · ${ts}`;
+
+    buildFilterBar();
+    renderCards();
+    showSection("cards-grid");
+
+  } catch (err) {
+    showSection("error-state");
+    document.getElementById("error-msg").textContent = err.message;
+    document.getElementById("error-detail").textContent =
+      "Sheet ID: " + SHEET_ID + " | Tab: " + SHEET_NAME;
+    console.error("Fetch error:", err);
+  }
+}
+
+// ============================================================
+//  FILTER BAR — dynamic + "Other" option in every dropdown
+// ============================================================
+function buildFilterBar() {
+  const bar = document.getElementById("filter-bar");
+  bar.innerHTML = "";
+  filterState = {};
+
+  // Always show these filters if data exists, even if only 1 unique value
+  const priorityFilters = ["Specialization","Specialisation","Specialty","City","District","Hospital","Clinic","Qualification","Degree","Gender","Language","Languages","Experience","Fees","Position","Tehsil"];
+
+  const filterCols = columns.filter(col => {
+    const m = getMeta(col);
+    return (m.filter || priorityFilters.some(p => col.toLowerCase().includes(p.toLowerCase()))) && !m.skip;
+  });
+
+  filterCols.forEach(col => {
+    const values = [...new Set(allDoctors.map(d => d[col]).filter(v => v && v !== "[Private]"))].sort();
+    if (values.length === 0) return;
+    filterState[col] = "";
+    const m = getMeta(col);
+    const g = document.createElement("div");
+    g.className = "filter-group";
+    // Add "Other" option at end of every dropdown
+    const opts = values.map(v => `<option value="${escHTML(v)}">${escHTML(v)}</option>`).join("");
+    g.innerHTML = `
+      <label>${m.icon} ${m.label || col}</label>
+      <select data-col="${col}" onchange="setFilter(this)">
+        <option value="">All</option>
+        ${opts}
+        <option value="__other__">Other</option>
+      </select>`;
+    bar.appendChild(g);
+  });
+}
+
+function setFilter(sel) {
+  filterState[sel.dataset.col] = sel.value;
+  renderCards();
+}
+
+// Helper: check if value matches filter (handles __other__)
+function matchesFilter(docVal, filterVal) {
+  if (!filterVal) return true;
+  if (filterVal === "__other__") {
+    // "Other" matches values not in the predefined list
+    return !docVal || docVal.toLowerCase().includes("other");
+  }
+  return docVal === filterVal;
+}
+
+function clearFilters() {
+  Object.keys(filterState).forEach(k => filterState[k] = "");
+  document.querySelectorAll(".filter-group select").forEach(s => s.value = "");
+  document.getElementById("global-search").value = "";
+  renderCards();
+}
+
+// ============================================================
+//  RENDER CARDS
+// ============================================================
+function renderCards() {
+  const query = document.getElementById("global-search").value.toLowerCase().trim();
+  const grid  = document.getElementById("cards-grid");
+
+  const filtered = allDoctors.filter(doc => {
+    if (query && !Object.values(doc).join(" ").toLowerCase().includes(query)) return false;
+    for (const [col, val] of Object.entries(filterState)) {
+      if (val && !matchesFilter(doc[col] || "", val)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById("result-count").textContent =
+    `Showing ${filtered.length} of ${allDoctors.length} doctors`;
+
+  if (filtered.length === 0) {
+    grid.style.display = "none";
+    document.getElementById("no-results").style.display = "block";
+    return;
+  }
+
+  document.getElementById("no-results").style.display = "none";
+  grid.style.display = "grid";
+  grid.innerHTML = filtered.map(buildCard).join("");
+}
+
+// ============================================================
+//  BUILD CARD — shows first 3 columns only, clickable for full profile
+// ============================================================
+function buildCard(doc) {
+  const nameCol  = columns.find(c => /^name$/i.test(c)) || columns.find(c => /name/i.test(c));
+  const specCol  = columns.find(c => /special|spec/i.test(c));
+  const photoCol = columns.find(c => /photo|image|img|pic/i.test(c));
+
+  const name  = nameCol  ? doc[nameCol]  : "Dr. Unknown";
+  const spec  = specCol  ? doc[specCol]  : "";
+  const photo = photoCol ? doc[photoCol] : "";
+
+  const skipKeys = new Set([nameCol, photoCol, specCol].filter(Boolean));
+
+  const avatarHTML = photo
+    ? `<img class="card-avatar" src="${escHTML(photo)}" alt="${escHTML(name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    : "";
+  const placeholderHTML = `<div class="card-avatar-placeholder" ${photo ? 'style="display:none"' : ""}>${initials(name)}</div>`;
+
+  // Show only first 3 non-skipped, non-empty columns
+  const previewCols = columns.filter(col => !skipKeys.has(col) && doc[col]).slice(0, 3);
+
+  const fieldRows = previewCols.map(col => {
+    const m = getMeta(col);
+    return `<div class="card-field">
+      <span class="field-icon">${m.icon}</span>
+      <span class="field-label">${escHTML(m.label || col)}</span>
+      <span class="field-value">${escHTML(doc[col])}</span>
+    </div>`;
+  }).join("");
+
+  // Encode doc data safely for HTML attribute
+  const docJSON = btoa(unescape(encodeURIComponent(JSON.stringify(doc))));
+
+  // Get rating for this doctor
+  const docId = btoa(unescape(encodeURIComponent(name)));
+  const reviews = getReviews(docId);
+  const avgRating = reviews.length > 0 ? (reviews.reduce((s,r)=>s+r.rating,0)/reviews.length).toFixed(1) : null;
+  const starsHTML = [1,2,3,4,5].map(s=>`<span class="star ${avgRating && s<=Math.round(avgRating)?'filled':''}">★</span>`).join("");
+
+  return `<div class="doctor-card" onclick="openModal(this)" data-doc="${docJSON}">
+    <div class="card-top">
+      ${avatarHTML}${placeholderHTML}
+      <div class="card-name-block">
+        <div class="card-name">${escHTML(name)}</div>
+        ${spec ? `<span class="card-spec">${escHTML(spec)}</span>` : ""}
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-fields">${fieldRows || '<span style="color:var(--ink-3);font-size:13px">No details yet.</span>'}</div>
+    </div>
+    <div class="card-rating">
+      <div class="stars-display">${starsHTML}</div>
+      ${avgRating ? `<span class="rating-avg">${avgRating}</span><span class="rating-count">(${reviews.length} review${reviews.length!==1?'s':''})</span>` : `<span class="rating-count" style="color:var(--ink-3)">No reviews yet</span>`}
+    </div>
+    <div class="card-hint"><span>👁</span> Tap to view full profile</div>
+  </div>`;
+}
+
+// ============================================================
+//  MODAL
+// ============================================================
+function openModal(cardEl) {
+  const doc = JSON.parse(decodeURIComponent(escape(atob(cardEl.dataset.doc))));
+
+  const nameCol  = columns.find(c => /^name$/i.test(c)) || columns.find(c => /name/i.test(c));
+  const specCol  = columns.find(c => /special|spec/i.test(c));
+  const photoCol = columns.find(c => /photo|image|img|pic/i.test(c));
+
+  const name  = nameCol  ? doc[nameCol]  : "Dr. Unknown";
+  const spec  = specCol  ? doc[specCol]  : "";
+  const photo = photoCol ? doc[photoCol] : "";
+
+  const avatarEl = document.getElementById("modal-avatar");
+  avatarEl.innerHTML = photo
+    ? `<img src="${photo}" alt="${escHTML(name)}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${initials(name)}';">`
+    : initials(name);
+
+  document.getElementById("modal-name").textContent = name;
+  const specEl = document.getElementById("modal-spec");
+  specEl.textContent = spec;
+  specEl.style.display = spec ? "inline-block" : "none";
+
+  const skipKeys = new Set([nameCol, photoCol, specCol].filter(Boolean));
+  const fieldsHTML = columns
+    .filter(col => !skipKeys.has(col) && doc[col])
+    .map(col => {
+      const m = getMeta(col);
+      const val = doc[col];
+      // Render social/URL fields as clickable links
+      const isSocial = m.social || /^https?:\/\//i.test(val);
+      const valueHTML = isSocial
+        ? `<a href="${escHTML(val)}" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none;word-break:break-all">${escHTML(val)}</a>`
+        : escHTML(val);
+      return `<div class="modal-field">
+        <span class="modal-field-icon">${m.icon}</span>
+        <span class="modal-field-label">${escHTML(m.label || col)}</span>
+        <span class="modal-field-value">${valueHTML}</span>
+      </div>`;
+    }).join("");
+
+  document.getElementById("modal-fields").innerHTML =
+    fieldsHTML || '<p style="color:var(--ink-3);font-size:14px;padding:12px 0">No additional details.</p>';
+
+  document.getElementById("modal-overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById("modal-overlay")) closeModalDirect();
+}
+
+function closeModalDirect() {
+  document.getElementById("modal-overlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+// ============================================================
+//  HELPERS
+// ============================================================
+function getMeta(col) {
+  const key = col.toLowerCase().replace(/[\s_\-]/g, "");
+  if (FIELD_META[key]) return FIELD_META[key];
+  for (const [k, v] of Object.entries(FIELD_META)) {
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  return { icon: "📝", label: col };
+}
+
+function initials(name) {
+  return (name || "?").split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase() || "?";
+}
+
+function escHTML(str) {
+  return String(str)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function showSection(id) {
+  ["loading","error-state","cards-grid","no-results"].forEach(s => {
+    const el = document.getElementById(s);
+    if (!el) return;
+    el.style.display = s === id ? (s === "cards-grid" ? "grid" : "block") : "none";
+  });
+}
+</script>
+</body>
+</html>
