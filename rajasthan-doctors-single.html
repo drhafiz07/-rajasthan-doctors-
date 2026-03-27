@@ -986,6 +986,103 @@ function showSection(id) {
     el.style.display = s === id ? (s === "cards-grid" ? "grid" : "block") : "none";
   });
 }
+
+// ============================================================
+//  USER STORAGE (localStorage)
+// ============================================================
+function getUsers() {
+  try { return JSON.parse(localStorage.getItem("rdd_users") || "{}"); } catch { return {}; }
+}
+function saveUsers(u) { localStorage.setItem("rdd_users", JSON.stringify(u)); }
+function hashPwd(pwd) {
+  let h = 0;
+  for (let i = 0; i < pwd.length; i++) h = (Math.imul(31, h) + pwd.charCodeAt(i)) | 0;
+  return "h" + Math.abs(h) + pwd.length;
+}
+
+// ============================================================
+//  REVIEWS (stored in localStorage per doctor)
+// ============================================================
+function getReviews(docId) {
+  try { return JSON.parse(localStorage.getItem("reviews_" + docId) || "[]"); } catch { return []; }
+}
+function saveReviews(docId, reviews) {
+  localStorage.setItem("reviews_" + docId, JSON.stringify(reviews));
+}
+
+function loadReviewsInModal(docId) {
+  const reviews    = getReviews(docId);
+  const reviewList = document.getElementById("review-list");
+  if (!reviewList) return;
+
+  if (reviews.length === 0) {
+    reviewList.innerHTML = '<p style="font-size:13px;color:var(--ink-3);padding:8px 0">No reviews yet. Be the first to review!</p>';
+    return;
+  }
+
+  reviewList.innerHTML = reviews.map(r => {
+    const stars = [1,2,3,4,5].map(s =>
+      `<span style="color:${s<=r.rating?'#C8922A':'#E0D5C8'};font-size:14px">★</span>`
+    ).join("");
+    return `<div class="review-item">
+      <div class="review-stars">${stars}</div>
+      <div class="review-text">${escHTML(r.text)}</div>
+      <div class="review-meta">— ${escHTML(r.userName)} &nbsp;·&nbsp; ${escHTML(r.date)}</div>
+    </div>`;
+  }).join("");
+}
+
+function setStar(val) {
+  selectedStar = val;
+  document.querySelectorAll(".star-btn").forEach(btn => {
+    btn.classList.toggle("sel", parseInt(btn.dataset.val) <= val);
+  });
+}
+
+function submitReview() {
+  if (!selectedStar) {
+    alert("Please select a star rating first."); return;
+  }
+  const text = (document.getElementById("review-text").value || "").trim();
+  if (!text) {
+    alert("Please write a review before submitting."); return;
+  }
+
+  const userRaw = sessionStorage.getItem("rdd_user");
+  if (!userRaw) { alert("Please sign in to submit a review."); return; }
+  const user = JSON.parse(userRaw);
+
+  const reviews = getReviews(currentDocId);
+
+  // Check if user already reviewed
+  if (reviews.some(r => r.userEmail === user.email)) {
+    alert("You have already submitted a review for this doctor."); return;
+  }
+
+  reviews.push({
+    rating:    selectedStar,
+    text:      text,
+    userName:  user.name,
+    userEmail: user.email,
+    date:      new Date().toLocaleDateString("en-IN")
+  });
+
+  saveReviews(currentDocId, reviews);
+  loadReviewsInModal(currentDocId);
+  renderCards(); // refresh star display on cards
+
+  // Reset
+  document.getElementById("review-text").value = "";
+  selectedStar = 0;
+  document.querySelectorAll(".star-btn").forEach(b => b.classList.remove("sel"));
+
+  // Hide write box after submit
+  document.getElementById("write-review-box").style.display = "none";
+  const msg = document.createElement("p");
+  msg.style.cssText = "font-size:13px;color:var(--green);margin-top:10px;padding:10px;background:var(--green-lt);border-radius:8px";
+  msg.textContent = "✓ Thank you! Your review has been submitted.";
+  document.getElementById("review-section").appendChild(msg);
+}
 </script>
 </body>
 </html>
