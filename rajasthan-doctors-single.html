@@ -505,27 +505,135 @@ function switchProfileTab(tab, myDoc, user) {
       </div>`;
 
   } else if (tab === "edit") {
-    // Build edit form pre-filled with current values
-    const editableCols = ["Name","Specialization","Hospital","Position","Contact","Fees","Timing","Languages","Address","Bio","LinkedIn","Twitter/X","Facebook","Instagram","YouTube","Website","Practo","Google Scholar"];
-    const skipEdit     = new Set(["Contact (Admin)","Mobile Public","Status","Submitted At","Email"]);
+    // Columns to always skip — never editable by doctor
+    const skipEdit = new Set([
+      "Contact (Admin)","Mobile Public","Status","Submitted At","Email"
+    ]);
 
-    const formFields = editableCols.map(col => {
-      const existing = myDoc ? (myDoc[col] || "") : "";
-      const isLong   = col === "Bio" || col === "Address";
+    // Group columns into sections for a structured form
+    const sections = [
+      {
+        title: "Personal Information",
+        icon: "👤",
+        cols: ["Name","Gender","Contact","Photo URL"]
+      },
+      {
+        title: "Professional Details",
+        icon: "🏥",
+        cols: ["Specialization","Hospital","Position","Registration No","Fees","Timing","Languages","Address"]
+      },
+      {
+        title: "Location (Rajasthan)",
+        icon: "📍",
+        cols: ["City","District","Tehsil","PIN Code"]
+      },
+      {
+        title: "About Me / Bio",
+        icon: "📝",
+        cols: ["Bio"]
+      },
+      {
+        title: "Social Media & Online",
+        icon: "🔗",
+        cols: ["LinkedIn","Twitter/X","Facebook","Instagram","YouTube","Website","Practo","Google Scholar"]
+      }
+    ];
+
+    // Collect all known section columns
+    const knownCols = new Set(sections.flatMap(s => s.cols));
+
+    // Find extra columns from doctor's actual record (CV entries, etc.)
+    // These are dynamic columns like Work1_Hospital, Edu1_Degree, etc.
+    const extraCols = myDoc
+      ? Object.keys(myDoc).filter(c => c !== "_row" && !skipEdit.has(c) && !knownCols.has(c))
+      : [];
+
+    // Group extra cols by prefix (Work, Edu, Award, Pub)
+    const cvGroups = {};
+    extraCols.forEach(col => {
+      const match = col.match(/^(Work|Edu|Award|Pub)(\d+)_(.+)$/);
+      if (match) {
+        const [, type, num, field] = match;
+        const key = type + num;
+        if (!cvGroups[key]) cvGroups[key] = { type, num: parseInt(num), fields: [] };
+        cvGroups[key].fields.push({ col, field });
+      }
+    });
+
+    // Build field HTML helper
+    const makeField = (col, existing) => {
+      const isLong    = /bio|address|about/i.test(col);
+      const isUrl     = /linkedin|twitter|facebook|instagram|youtube|website|practo|scholar|photo/i.test(col);
+      const isMobile  = col === "Contact";
+      const safeId    = "pe-" + col.replace(/[^a-zA-Z0-9]/g,'_');
+      const m         = getMeta(col);
       return `<div class="profile-field">
-        <label>${escHTML(col)}</label>
+        <label>${m.icon} ${escHTML(m.label || col)}</label>
         ${isLong
-          ? `<textarea id="pe-${escHTML(col.replace(/\W/g,'_'))}" rows="3">${escHTML(existing)}</textarea>`
-          : `<input type="text" id="pe-${escHTML(col.replace(/\W/g,'_'))}" value="${escHTML(existing)}" placeholder="${escHTML(col)}"/>`}
+          ? `<textarea id="${safeId}" rows="4">${escHTML(existing)}</textarea>`
+          : `<input type="${isUrl?'url':'text'}" id="${safeId}" value="${escHTML(existing)}" placeholder="${escHTML(m.label || col)}"/>`}
+        ${isMobile ? '<div style="font-size:11px;color:var(--ink-3);margin-top:3px">Include +91 prefix</div>' : ''}
       </div>`;
+    };
+
+    // Build section HTMLs
+    let sectionsHTML = sections.map(sec => {
+      const fieldsHTML = sec.cols.map(col => {
+        const existing = myDoc ? (myDoc[col] || "") : "";
+        return makeField(col, existing);
+      }).join("");
+      return `
+        <div style="margin-bottom:20px">
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--maroon);margin-bottom:12px;display:flex;align-items:center;gap:6px;padding-bottom:6px;border-bottom:1px solid var(--maroon-lt)">
+            ${sec.icon} ${escHTML(sec.title)}
+          </div>
+          ${fieldsHTML}
+        </div>`;
     }).join("");
+
+    // Add CV sections dynamically
+    if (Object.keys(cvGroups).length > 0) {
+      const cvTypeLabels = { Work: "🏥 Work Experience", Edu: "🎓 Education", Award: "🏆 Awards", Pub: "📄 Publications" };
+      const cvByType = {};
+      Object.values(cvGroups)
+        .sort((a,b) => a.type.localeCompare(b.type) || a.num - b.num)
+        .forEach(g => {
+          if (!cvByType[g.type]) cvByType[g.type] = [];
+          const entryHTML = g.fields.map(({col, field}) => {
+            const existing = myDoc ? (myDoc[col] || "") : "";
+            const safeId   = "pe-" + col.replace(/[^a-zA-Z0-9]/g,'_');
+            return `<div class="profile-field">
+              <label>${escHTML(field)}</label>
+              <input type="text" id="${safeId}" value="${escHTML(existing)}" placeholder="${escHTML(field)}"/>
+            </div>`;
+          }).join("");
+          cvByType[g.type].push(`
+            <div style="background:var(--sand);border-radius:var(--radius);padding:14px;margin-bottom:10px">
+              <div style="font-size:11px;font-weight:600;color:var(--maroon);margin-bottom:10px;text-transform:uppercase">#${g.num}</div>
+              ${entryHTML}
+            </div>`);
+        });
+
+      Object.entries(cvByType).forEach(([type, entries]) => {
+        sectionsHTML += `
+          <div style="margin-bottom:20px">
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--maroon);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--maroon-lt)">
+              ${cvTypeLabels[type] || type}
+            </div>
+            ${entries.join("")}
+          </div>`;
+      });
+    }
 
     body.innerHTML = `
       <div class="update-notice">
-        ⚠️ Changes you submit here will be sent to the admin for review. Your profile will only update <strong>after admin approval</strong>.
+        ⚠️ Changes you submit here will be sent to the admin for review.
+        Your profile will only update <strong>after admin approval</strong>.
       </div>
-      ${formFields}
-      <button class="btn-update" onclick="submitProfileUpdate()">Submit Changes for Approval →</button>
+      ${sectionsHTML}
+      <button class="btn-update" id="btn-update-submit" onclick="submitProfileUpdate()">
+        Submit Changes for Approval →
+      </button>
       <div id="update-msg" style="margin-top:12px;font-size:13px;display:none"></div>`;
   }
 }
@@ -535,17 +643,25 @@ async function submitProfileUpdate() {
   if (!userRaw) return;
   const user = JSON.parse(userRaw);
 
-  const editableCols = ["Name","Specialization","Hospital","Position","Contact","Fees","Timing","Languages","Address","Bio","LinkedIn","Twitter/X","Facebook","Instagram","YouTube","Website","Practo","Google Scholar"];
-
+  // Collect ALL pe-* inputs and textareas dynamically — no hardcoded list
   const changes = {};
-  editableCols.forEach(col => {
-    const el = document.getElementById("pe-" + col.replace(/\W/g,'_'));
-    if (el && el.value.trim()) changes[col] = el.value.trim();
+  document.querySelectorAll("[id^='pe-']").forEach(el => {
+    const val = el.value.trim();
+    if (!val) return;
+    // Convert safe ID back to column name
+    // pe-Name -> Name, pe-Twitter_X -> Twitter/X, pe-Work1_Hospital -> Work1_Hospital
+    const rawId  = el.id.replace(/^pe-/, "");
+    // Find matching column in allDoctors columns list
+    const matchedCol = columns.find(c => c.replace(/[^a-zA-Z0-9]/g,'_') === rawId) || rawId.replace(/_/g,' ');
+    changes[matchedCol] = val;
   });
 
   if (Object.keys(changes).length === 0) {
-    showUpdateMsg("Please make at least one change before submitting.", "error"); return;
+    showUpdateMsg("Please fill in at least one field before submitting.", "error"); return;
   }
+
+  const btn = document.getElementById("btn-update-submit");
+  if (btn) { btn.disabled = true; btn.textContent = "Submitting…"; }
 
   const APPS_URL = "https://script.google.com/macros/s/AKfycbwaEb_hrjLu3rGt4Rujjkn0Dd3aXiSB00Su05tPImVDl32jY2lZtw_-hhoehP4n_QXZ/exec";
 
@@ -561,8 +677,10 @@ async function submitProfileUpdate() {
       })
     });
     showUpdateMsg("✓ Your update request has been submitted! The admin will review and approve it shortly.", "success");
+    if (btn) { btn.disabled = false; btn.textContent = "Submit Changes for Approval →"; }
   } catch(err) {
     showUpdateMsg("Submission failed: " + err.message, "error");
+    if (btn) { btn.disabled = false; btn.textContent = "Submit Changes for Approval →"; }
   }
 }
 
