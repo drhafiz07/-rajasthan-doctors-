@@ -128,7 +128,7 @@
       <div style="font-size:64px;margin-bottom:16px">🎉</div>
       <h2>Application Submitted!</h2>
       <p>Thank you, <strong id="success-name"></strong>. Your registration is pending admin review. You will be notified once approved.</p>
-      <button class="btn-back" onclick="window.location.href='auth.html'">Back to Login</button>
+      <button class="btn-back" id="btn-success-back" onclick="window.location.href='auth.html'">Back to Login</button>
     </div>
     <div id="reg-form">
       <div class="alert" id="form-alert" style="margin:16px 28px 0"></div>
@@ -425,17 +425,20 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(EMAILJS_PUBLIC_KEY)emailjs.init({publicKey:EMAILJS_PUBLIC_KEY});
   updateProgress(1);
 
-  // Check if opened in edit mode via URL hash
-  const hash = window.location.hash;
-  if (hash.startsWith('#edit=')) {
-    try {
-      editDocData = JSON.parse(decodeURIComponent(escape(atob(hash.replace('#edit=','')))));
+  // Check if opened in edit mode via sessionStorage
+  try {
+    const editFlag = sessionStorage.getItem("rdd_edit_mode");
+    const editData = sessionStorage.getItem("rdd_edit_doc");
+    if (editFlag === "true" && editData) {
+      editDocData = JSON.parse(editData);
       isEditMode  = true;
+      // Clear flags so refresh doesn't re-enter edit mode
+      sessionStorage.removeItem("rdd_edit_mode");
+      sessionStorage.removeItem("rdd_edit_doc");
       enterEditMode(editDocData);
-    } catch(e) {
-      console.error('Edit mode parse error:', e);
-      // Fall through to normal registration
     }
+  } catch(e) {
+    console.error('Edit mode load error:', e);
   }
 
   addEntry('work'); addEntry('edu');
@@ -553,6 +556,25 @@ function enterEditMode(doc) {
   // Mark OTP as already verified (skip requirement)
   currentOTP  = 'EDIT_MODE_BYPASS';
   otpExpiry   = Date.now() + 999 * 60 * 1000; // far future
+
+  // Update success button to go back to directory
+  const successBtn = document.getElementById('btn-success-back');
+  if (successBtn) {
+    successBtn.textContent = 'Back to Directory';
+    successBtn.onclick = () => { window.location.href = 'rajasthan-doctors-single.html'; };
+  }
+
+  // Add "Back to Profile" link in header area
+  const formWrap = document.querySelector('.form-wrap');
+  if (formWrap) {
+    const backBar = document.createElement('div');
+    backBar.style.cssText = 'margin-bottom:12px;';
+    backBar.innerHTML = `<a href="rajasthan-doctors-single.html"
+      style="display:inline-flex;align-items:center;gap:6px;color:var(--maroon);font-size:13px;font-weight:600;text-decoration:none;padding:8px 0">
+      ← Back to My Profile
+    </a>`;
+    formWrap.insertBefore(backBar, formWrap.firstChild);
+  }
 }
 
 // ============================================================
