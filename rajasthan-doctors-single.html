@@ -505,96 +505,50 @@ function switchProfileTab(tab, myDoc, user) {
       </div>`;
 
   } else if (tab === "edit") {
-    const skipEdit = new Set(["Contact (Admin)","Mobile Public","Status","Submitted At","Email"]);
+    // Columns to always skip — never editable by doctor
+    const skipEdit = new Set([
+      "Contact (Admin)","Mobile Public","Status","Submitted At","Email"
+    ]);
 
-    // Calculate next CV numbers from existing doc
-    const getNextNum = (prefix) => {
-      if (!myDoc) return 1;
-      let max = 0;
-      Object.keys(myDoc).forEach(k => {
-        const m = k.match(new RegExp('^' + prefix + '(\\d+)_'));
-        if (m) max = Math.max(max, parseInt(m[1]));
-      });
-      return max + 1;
-    };
-
-    // Track new entries added in this session
-    window._newEntries = window._newEntries || {};
-
-    // Build field HTML helper
-    const makeField = (col, existing, safeIdOverride) => {
-      const isLong   = /bio|address|about/i.test(col);
-      const isPhoto  = /photo/i.test(col);
-      const isUrl    = /linkedin|twitter|facebook|instagram|youtube|website|practo|scholar/i.test(col);
-      const isMobile = col === "Contact";
-      const safeId   = safeIdOverride || ("pe-" + col.replace(/[^a-zA-Z0-9]/g,'_'));
-      const m        = getMeta(col);
-
-      if (isPhoto) {
-        return `<div class="profile-field">
-          <label>${m.icon} Profile Photo</label>
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-            <div id="photo-preview" style="width:64px;height:64px;border-radius:50%;border:2px solid var(--gold);background:var(--maroon-lt);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--maroon);flex-shrink:0">
-              ${existing ? `<img src="${escHTML(existing)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='📷'">` : '📷'}
-            </div>
-            <div style="flex:1">
-              <input type="file" id="photo-file-input" accept="image/*" onchange="handlePhotoUpload(this)"
-                style="display:block;width:100%;font-size:13px;color:var(--ink-3);margin-bottom:6px"/>
-              <div style="font-size:11px;color:var(--ink-3)">Max 500KB. JPG/PNG. Will be stored as a link.</div>
-            </div>
-          </div>
-          <input type="hidden" id="${safeId}" value="${escHTML(existing)}"/>
-          <div style="font-size:11px;color:var(--ink-3);margin-top:4px">Or paste a direct image URL:</div>
-          <input type="url" id="pe-photo-url-text" value="${escHTML(existing)}"
-            placeholder="https://example.com/photo.jpg"
-            oninput="document.getElementById('${safeId}').value=this.value;updatePhotoPreview(this.value)"/>
-        </div>`;
-      }
-
-      return `<div class="profile-field">
-        <label>${m.icon} ${escHTML(m.label || col)}</label>
-        ${isLong
-          ? `<textarea id="${safeId}" rows="3">${escHTML(existing)}</textarea>`
-          : `<input type="${isUrl?'url':'text'}" id="${safeId}" value="${escHTML(existing)}" placeholder="${escHTML(m.label||col)}"/>`}
-        ${isMobile ? '<div style="font-size:11px;color:var(--ink-3);margin-top:3px">Include +91 prefix</div>' : ''}
-      </div>`;
-    };
-
-    // CV add-entry button builder
-    const makeCVAddBtn = (type, label, icon, fields) => {
-      const btnId = 'btn-add-' + type.toLowerCase();
-      const listId = 'new-' + type.toLowerCase() + '-list';
-      return `
-        <div id="${listId}"></div>
-        <button id="${btnId}" onclick="addNewCVEntry('${type}','${listId}',${JSON.stringify(fields)})"
-          style="display:flex;align-items:center;gap:6px;padding:9px 16px;background:none;border:1.5px dashed var(--maroon);border-radius:10px;color:var(--maroon);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;width:100%;justify-content:center;margin-top:4px;transition:background .15s"
-          onmouseover="this.style.background='var(--maroon-lt)'" onmouseout="this.style.background='none'">
-          + Add ${icon} ${escHTML(label)}
-        </button>`;
-    };
-
-    // Fixed sections
+    // Group columns into sections for a structured form
     const sections = [
-      { title:"Personal Information",   icon:"👤", cols:["Name","Gender","Contact","Photo URL"] },
-      { title:"Professional Details",   icon:"🏥", cols:["Specialization","Hospital","Position","Registration No","Fees","Timing","Languages","Address"] },
-      { title:"Location (Rajasthan)",   icon:"📍", cols:["City","District","Tehsil","PIN Code"] },
-      { title:"About Me / Bio",         icon:"📝", cols:["Bio"] },
-      { title:"Social Media & Online",  icon:"🔗", cols:["LinkedIn","Twitter/X","Facebook","Instagram","YouTube","Website","Practo","Google Scholar"] }
+      {
+        title: "Personal Information",
+        icon: "👤",
+        cols: ["Name","Gender","Contact","Photo URL"]
+      },
+      {
+        title: "Professional Details",
+        icon: "🏥",
+        cols: ["Specialization","Hospital","Position","Registration No","Fees","Timing","Languages","Address"]
+      },
+      {
+        title: "Location (Rajasthan)",
+        icon: "📍",
+        cols: ["City","District","Tehsil","PIN Code"]
+      },
+      {
+        title: "About Me / Bio",
+        icon: "📝",
+        cols: ["Bio"]
+      },
+      {
+        title: "Social Media & Online",
+        icon: "🔗",
+        cols: ["LinkedIn","Twitter/X","Facebook","Instagram","YouTube","Website","Practo","Google Scholar"]
+      }
     ];
+
+    // Collect all known section columns
     const knownCols = new Set(sections.flatMap(s => s.cols));
 
-    let sectionsHTML = sections.map(sec => {
-      const fieldsHTML = sec.cols.map(col => makeField(col, myDoc ? (myDoc[col]||'') : '')).join('');
-      return `<div style="margin-bottom:20px">
-        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--maroon);margin-bottom:12px;display:flex;align-items:center;gap:6px;padding-bottom:6px;border-bottom:1px solid var(--maroon-lt)">
-          ${sec.icon} ${escHTML(sec.title)}
-        </div>
-        ${fieldsHTML}
-      </div>`;
-    }).join('');
+    // Find extra columns from doctor's actual record (CV entries, etc.)
+    // These are dynamic columns like Work1_Hospital, Edu1_Degree, etc.
+    const extraCols = myDoc
+      ? Object.keys(myDoc).filter(c => c !== "_row" && !skipEdit.has(c) && !knownCols.has(c))
+      : [];
 
-    // Existing CV entries
-    const extraCols = myDoc ? Object.keys(myDoc).filter(c => c !== '_row' && !skipEdit.has(c) && !knownCols.has(c)) : [];
+    // Group extra cols by prefix (Work, Edu, Award, Pub)
     const cvGroups = {};
     extraCols.forEach(col => {
       const match = col.match(/^(Work|Edu|Award|Pub)(\d+)_(.+)$/);
@@ -606,55 +560,81 @@ function switchProfileTab(tab, myDoc, user) {
       }
     });
 
-    const cvTypeLabels = {
-      Work:  { label:'Work Experience', icon:'🏥', fields:['Hospital','Position','From','To'] },
-      Edu:   { label:'Education',       icon:'🎓', fields:['Degree','Subject','College','Year'] },
-      Award: { label:'Award',           icon:'🏆', fields:['Title','By','Year'] },
-      Pub:   { label:'Publication',     icon:'📄', fields:['Title','Journal','Year'] }
+    // Build field HTML helper
+    const makeField = (col, existing) => {
+      const isLong    = /bio|address|about/i.test(col);
+      const isUrl     = /linkedin|twitter|facebook|instagram|youtube|website|practo|scholar|photo/i.test(col);
+      const isMobile  = col === "Contact";
+      const safeId    = "pe-" + col.replace(/[^a-zA-Z0-9]/g,'_');
+      const m         = getMeta(col);
+      return `<div class="profile-field">
+        <label>${m.icon} ${escHTML(m.label || col)}</label>
+        ${isLong
+          ? `<textarea id="${safeId}" rows="4">${escHTML(existing)}</textarea>`
+          : `<input type="${isUrl?'url':'text'}" id="${safeId}" value="${escHTML(existing)}" placeholder="${escHTML(m.label || col)}"/>`}
+        ${isMobile ? '<div style="font-size:11px;color:var(--ink-3);margin-top:3px">Include +91 prefix</div>' : ''}
+      </div>`;
     };
 
-    const cvByType = {};
-    Object.values(cvGroups).sort((a,b)=>a.type.localeCompare(b.type)||a.num-b.num).forEach(g=>{
-      if (!cvByType[g.type]) cvByType[g.type] = [];
-      const entryHTML = g.fields.map(({col,field})=>{
-        const safeId = 'pe-' + col.replace(/[^a-zA-Z0-9]/g,'_');
-        return `<div class="profile-field">
-          <label>${escHTML(field)}</label>
-          <input type="text" id="${safeId}" value="${escHTML(myDoc?myDoc[col]||'':'')}" placeholder="${escHTML(field)}"/>
-        </div>`;
-      }).join('');
-      cvByType[g.type].push(`
-        <div style="background:var(--sand);border-radius:10px;padding:14px;margin-bottom:10px;position:relative">
-          <div style="font-size:10px;font-weight:600;color:var(--maroon);margin-bottom:10px;text-transform:uppercase">#${g.num}</div>
-          ${entryHTML}
-        </div>`);
-    });
-
-    Object.entries(cvTypeLabels).forEach(([type, meta]) => {
-      const nextNum = getNextNum(type);
-      sectionsHTML += `
+    // Build section HTMLs
+    let sectionsHTML = sections.map(sec => {
+      const fieldsHTML = sec.cols.map(col => {
+        const existing = myDoc ? (myDoc[col] || "") : "";
+        return makeField(col, existing);
+      }).join("");
+      return `
         <div style="margin-bottom:20px">
-          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--maroon);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--maroon-lt)">
-            ${meta.icon} ${escHTML(meta.label)}
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--maroon);margin-bottom:12px;display:flex;align-items:center;gap:6px;padding-bottom:6px;border-bottom:1px solid var(--maroon-lt)">
+            ${sec.icon} ${escHTML(sec.title)}
           </div>
-          ${(cvByType[type]||[]).join('')}
-          ${makeCVAddBtn(type, meta.label, meta.icon, meta.fields)}
+          ${fieldsHTML}
         </div>`;
-    });
+    }).join("");
+
+    // Add CV sections dynamically
+    if (Object.keys(cvGroups).length > 0) {
+      const cvTypeLabels = { Work: "🏥 Work Experience", Edu: "🎓 Education", Award: "🏆 Awards", Pub: "📄 Publications" };
+      const cvByType = {};
+      Object.values(cvGroups)
+        .sort((a,b) => a.type.localeCompare(b.type) || a.num - b.num)
+        .forEach(g => {
+          if (!cvByType[g.type]) cvByType[g.type] = [];
+          const entryHTML = g.fields.map(({col, field}) => {
+            const existing = myDoc ? (myDoc[col] || "") : "";
+            const safeId   = "pe-" + col.replace(/[^a-zA-Z0-9]/g,'_');
+            return `<div class="profile-field">
+              <label>${escHTML(field)}</label>
+              <input type="text" id="${safeId}" value="${escHTML(existing)}" placeholder="${escHTML(field)}"/>
+            </div>`;
+          }).join("");
+          cvByType[g.type].push(`
+            <div style="background:var(--sand);border-radius:var(--radius);padding:14px;margin-bottom:10px">
+              <div style="font-size:11px;font-weight:600;color:var(--maroon);margin-bottom:10px;text-transform:uppercase">#${g.num}</div>
+              ${entryHTML}
+            </div>`);
+        });
+
+      Object.entries(cvByType).forEach(([type, entries]) => {
+        sectionsHTML += `
+          <div style="margin-bottom:20px">
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--maroon);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--maroon-lt)">
+              ${cvTypeLabels[type] || type}
+            </div>
+            ${entries.join("")}
+          </div>`;
+      });
+    }
 
     body.innerHTML = `
       <div class="update-notice">
-        ⚠️ Changes will be sent to admin for review and applied <strong>only after approval</strong>.
+        ⚠️ Changes you submit here will be sent to the admin for review.
+        Your profile will only update <strong>after admin approval</strong>.
       </div>
       ${sectionsHTML}
       <button class="btn-update" id="btn-update-submit" onclick="submitProfileUpdate()">
         Submit Changes for Approval →
       </button>
       <div id="update-msg" style="margin-top:12px;font-size:13px;display:none"></div>`;
-
-    // Store next numbers for new entries
-    window._cvNextNums = {};
-    Object.keys(cvTypeLabels).forEach(t => { window._cvNextNums[t] = getNextNum(t); });
   }
 }
 
@@ -663,23 +643,17 @@ async function submitProfileUpdate() {
   if (!userRaw) return;
   const user = JSON.parse(userRaw);
 
-  // Collect ALL pe-* inputs and textareas (existing fields)
+  // Collect ALL pe-* inputs and textareas dynamically — no hardcoded list
   const changes = {};
   document.querySelectorAll("[id^='pe-']").forEach(el => {
-    if (el.id === 'pe-photo-url-text') return; // skip duplicate photo URL box
     const val = el.value.trim();
     if (!val) return;
-    const rawId      = el.id.replace(/^pe-/, "");
-    const matchedCol = columns.find(c => c.replace(/[^a-zA-Z0-9]/g,'_') === rawId) || rawId.replace(/_/g, ' ');
+    // Convert safe ID back to column name
+    // pe-Name -> Name, pe-Twitter_X -> Twitter/X, pe-Work1_Hospital -> Work1_Hospital
+    const rawId  = el.id.replace(/^pe-/, "");
+    // Find matching column in allDoctors columns list
+    const matchedCol = columns.find(c => c.replace(/[^a-zA-Z0-9]/g,'_') === rawId) || rawId.replace(/_/g,' ');
     changes[matchedCol] = val;
-  });
-
-  // Collect NEW CV entries added via + Add buttons
-  document.querySelectorAll("[id^='pe-new-']").forEach(el => {
-    const val = el.value.trim();
-    if (!val) return;
-    const col = el.dataset.col; // e.g. "Work3_Hospital"
-    if (col) changes[col] = val;
   });
 
   if (Object.keys(changes).length === 0) {
@@ -1011,83 +985,6 @@ function showSection(id) {
     if (!el) return;
     el.style.display = s === id ? (s === "cards-grid" ? "grid" : "block") : "none";
   });
-}
-
-// ============================================================
-//  ADD NEW CV ENTRY (in My Profile edit tab)
-// ============================================================
-function addNewCVEntry(type, listId, fields) {
-  if (!window._cvNextNums) window._cvNextNums = {};
-  if (!window._cvNextNums[type]) window._cvNextNums[type] = 1;
-
-  const num    = window._cvNextNums[type]++;
-  const listEl = document.getElementById(listId);
-  if (!listEl) return;
-
-  const entryId = 'new-' + type + '-' + num;
-  const div     = document.createElement('div');
-  div.id        = entryId;
-  div.style.cssText = 'background:var(--sand);border:1.5px dashed var(--maroon);border-radius:10px;padding:14px;margin-bottom:10px;position:relative';
-
-  const fieldsHTML = fields.map(field => {
-    const col    = type + num + '_' + field;
-    const safeId = 'pe-new-' + col.replace(/[^a-zA-Z0-9]/g,'_');
-    return `<div class="profile-field">
-      <label>${field}</label>
-      <input type="text" id="${safeId}" data-col="${col}" placeholder="${field}"/>
-    </div>`;
-  }).join('');
-
-  const icons = { Work:'🏥', Edu:'🎓', Award:'🏆', Pub:'📄' };
-  div.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:11px;font-weight:600;color:var(--maroon);text-transform:uppercase">${icons[type]||''} New Entry #${num}</span>
-      <button onclick="document.getElementById('${entryId}').remove()"
-        style="background:var(--red-lt);color:var(--red);border:1px solid #F7C1C1;border-radius:6px;font-size:12px;font-weight:600;padding:3px 10px;cursor:pointer;font-family:'DM Sans',sans-serif">
-        ✕ Remove
-      </button>
-    </div>
-    ${fieldsHTML}`;
-
-  listEl.appendChild(div);
-}
-
-// ============================================================
-//  PHOTO UPLOAD HANDLER
-// ============================================================
-function handlePhotoUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-
-  if (file.size > 500 * 1024) {
-    alert('Photo is too large. Please use an image under 500KB.');
-    input.value = '';
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const dataUrl = e.target.result;
-    // Update hidden input
-    const hiddenInput = document.getElementById('pe-Photo_URL');
-    if (hiddenInput) hiddenInput.value = dataUrl;
-    // Update URL text box
-    const urlInput = document.getElementById('pe-photo-url-text');
-    if (urlInput) urlInput.value = dataUrl;
-    // Update preview
-    updatePhotoPreview(dataUrl);
-  };
-  reader.readAsDataURL(file);
-}
-
-function updatePhotoPreview(src) {
-  const preview = document.getElementById('photo-preview');
-  if (!preview) return;
-  if (src) {
-    preview.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='📷'">`;
-  } else {
-    preview.textContent = '📷';
-  }
 }
 
 // ============================================================

@@ -852,16 +852,24 @@ async function loadProfileUpdates() {
       const date    = doc["Submitted At"] || "";
 
       let changesHTML = "";
+      let changesObj  = {};
       try {
-        const obj = JSON.parse(changes);
-        changesHTML = Object.entries(obj).map(([k, v]) =>
-          `<div class="update-change-row">
-            <span class="update-change-field">${escHTML(k)}</span>
-            <span class="update-change-val">${escHTML(v)}</span>
-          </div>`
-        ).join("");
+        changesObj  = JSON.parse(changes);
+        // Filter out internal/admin fields from display
+        const skipShow = new Set(["Status","Submitted At","Contact (Admin)","Mobile Public","Email"]);
+        const entries  = Object.entries(changesObj).filter(([k]) => !skipShow.has(k) && k !== "_row");
+        if (entries.length === 0) {
+          changesHTML = '<div class="update-change-row"><span class="update-change-val" style="color:var(--ink-3)">No changes detected.</span></div>';
+        } else {
+          changesHTML = entries.map(([k, v]) =>
+            `<div class="update-change-row">
+              <span class="update-change-field">${escHTML(k)}</span>
+              <span class="update-change-val">${escHTML(String(v).substring(0,200))}${String(v).length>200?'…':''}</span>
+            </div>`
+          ).join("");
+        }
       } catch(e) {
-        changesHTML = `<div class="update-change-row"><span class="update-change-val">${escHTML(changes)}</span></div>`;
+        changesHTML = `<div class="update-change-row"><span class="update-change-val" style="color:var(--ink-3)">Could not parse changes. Raw: ${escHTML(changes.substring(0,200))}</span></div>`;
       }
 
       return `<div class="update-card">
@@ -877,7 +885,7 @@ async function loadProfileUpdates() {
           ${changesHTML}
         </div>
         <div class="update-actions">
-          <button class="btn-approve-update" onclick="approveProfileUpdate(${doc._row}, '${escHTML(name)}', '${escHTML(email)}', ${JSON.stringify(changes).replace(/'/g,"&#39;")})">✓ Approve & Apply</button>
+          <button class="btn-approve-update" onclick="approveProfileUpdate(${doc._row}, '${escHTML(name)}', '${escHTML(email)}')">✓ Approve & Apply</button>
           <button class="btn-reject-update"  onclick="rejectProfileUpdate(${doc._row}, '${escHTML(name)}')">✕ Reject</button>
         </div>
       </div>`;
@@ -895,21 +903,22 @@ async function loadProfileUpdates() {
 // ============================================================
 //  APPROVE PROFILE UPDATE — applies changes to Sheet1
 // ============================================================
-async function approveProfileUpdate(rowNum, name, email, changesJSON) {
+async function approveProfileUpdate(rowNum, name, email) {
   if (!APPS_SCRIPT_URL) { showToast("Apps Script URL not configured.", "error"); return; }
   if (!confirm("Approve and apply changes for Dr. " + name + "?")) return;
 
   showToast("Applying changes…");
   try {
+    // Pass rowNum and email — Apps Script will read changes directly from sheet
     await fetch(APPS_SCRIPT_URL, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({
-        action:      "approve_update",
-        rowIndex:    rowNum,
-        email:       email,
-        changes:     typeof changesJSON === "string" ? JSON.parse(changesJSON) : changesJSON,
-        sheetName:   SHEET_NAME
+        action:    "approve_update",
+        rowIndex:  rowNum,
+        email:     email,
+        name:      name,
+        sheetName: SHEET_NAME
       })
     });
     showToast("✓ Profile update approved and applied!", "success");

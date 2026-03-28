@@ -246,22 +246,22 @@
         <div class="cv-group">
           <div class="cv-group-title">🏥 Work Experience <span class="cv-group-hint">(add as many as needed)</span></div>
           <div id="work-entries"></div>
-          <button class="btn-add-entry" onclick="addEntry('work')">+ Add Work Experience</button>
+          <button type="button" class="btn-add-entry" onclick="addEntry('work')">+ Add Work Experience</button>
         </div>
         <div class="cv-group">
           <div class="cv-group-title">🎓 Education / Degrees <span class="cv-group-hint">(add as many as needed)</span></div>
           <div id="edu-entries"></div>
-          <button class="btn-add-entry" onclick="addEntry('edu')">+ Add Education</button>
+          <button type="button" class="btn-add-entry" onclick="addEntry('edu')">+ Add Education</button>
         </div>
         <div class="cv-group">
           <div class="cv-group-title">🏆 Awards & Achievements <span class="cv-group-hint">(optional)</span></div>
           <div id="award-entries"></div>
-          <button class="btn-add-entry" onclick="addEntry('award')">+ Add Award</button>
+          <button type="button" class="btn-add-entry" onclick="addEntry('award')">+ Add Award</button>
         </div>
         <div class="cv-group" style="margin-bottom:0">
           <div class="cv-group-title">📄 Publications / Research <span class="cv-group-hint">(optional)</span></div>
           <div id="pub-entries"></div>
-          <button class="btn-add-entry" onclick="addEntry('pub')">+ Add Publication</button>
+          <button type="button" class="btn-add-entry" onclick="addEntry('pub')">+ Add Publication</button>
         </div>
       </div>
 
@@ -415,15 +415,197 @@ const EMAILJS_PUBLIC_KEY="",EMAILJS_SERVICE_ID="",EMAILJS_TEMPLATE_ID="";
 let currentOTP="",otpExpiry=0,otpTimerHnd=null;
 let counts={work:0,edu:0,award:0,pub:0};
 
+// ============================================================
+//  EDIT MODE — detect if opened from My Profile
+// ============================================================
+let isEditMode = false;
+let editDocData = null;
+
 document.addEventListener("DOMContentLoaded",()=>{
   if(EMAILJS_PUBLIC_KEY)emailjs.init({publicKey:EMAILJS_PUBLIC_KEY});
   updateProgress(1);
+
+  // Check if opened in edit mode via URL hash
+  const hash = window.location.hash;
+  if (hash.startsWith('#edit=')) {
+    try {
+      editDocData = JSON.parse(decodeURIComponent(escape(atob(hash.replace('#edit=','')))));
+      isEditMode  = true;
+      enterEditMode(editDocData);
+    } catch(e) {
+      console.error('Edit mode parse error:', e);
+      // Fall through to normal registration
+    }
+  }
+
   addEntry('work'); addEntry('edu');
+
+  // Pre-fill CV entries if in edit mode
+  if (isEditMode && editDocData) prefillCVEntries(editDocData);
+
   const obs=new IntersectionObserver(es=>{
     es.forEach(e=>{if(e.isIntersecting){const m={"sec1":1,"sec2":2,"sec3":3,"sec4":4,"sec5":5,"sec6":6,"sec7":7};if(m[e.target.id])updateProgress(m[e.target.id]);}});
   },{threshold:0.3});
   ["sec1","sec2","sec3","sec4","sec5","sec6","sec7"].forEach(id=>{const el=document.getElementById(id);if(el)obs.observe(el);});
 });
+
+// ============================================================
+//  ENTER EDIT MODE — change UI and pre-fill all fields
+// ============================================================
+function enterEditMode(doc) {
+  // Update page title and hero
+  document.title = 'Edit Profile — Rajasthan Doctor Directory';
+  const h1 = document.querySelector('.hero-strip h1');
+  if (h1) h1.textContent = 'Edit Your Profile';
+  const hp = document.querySelector('.hero-strip p');
+  if (hp) hp.textContent = 'Update your details below. Changes will be sent to the admin for approval before going live.';
+
+  // Update submit button
+  const btn = document.getElementById('btn-submit');
+  if (btn) btn.textContent = 'Submit Changes for Approval →';
+
+  // Update success screen message
+  const successP = document.querySelector('#success-screen p');
+  if (successP) successP.innerHTML = 'Thank you, <strong id="success-name"></strong>. Your profile update request has been submitted and is pending admin review. Changes will go live after approval.';
+
+  // Hide OTP section — email already verified
+  const otpSection = document.getElementById('otp-field');
+  if (otpSection) otpSection.style.display = 'none';
+  const sendOTPBtn = document.getElementById('btn-send-otp');
+  if (sendOTPBtn) { sendOTPBtn.style.display = 'none'; }
+  const emailInput = document.getElementById('f-email');
+  if (emailInput) { emailInput.disabled = true; }
+
+  // Add edit mode notice at top
+  const formAlert = document.getElementById('form-alert');
+  if (formAlert) {
+    formAlert.textContent = '✏️ You are editing your profile. All changes require admin approval before going live.';
+    formAlert.className = 'alert info';
+    formAlert.style.display = 'block';
+  }
+
+  // Pre-fill all simple fields
+  const fieldMap = {
+    'f-name':     doc['Name']            || '',
+    'f-gender':   doc['Gender']          || '',
+    'f-mobile':   (doc['Contact (Admin)'] || doc['Contact'] || '').replace(/^\+91/,'').trim(),
+    'f-email':    doc['Email']           || '',
+    'f-spec':     doc['Specialization']  || '',
+    'f-reg':      doc['Registration No'] || '',
+    'f-hospital': doc['Hospital']        || '',
+    'f-position': doc['Position']        || '',
+    'f-fees':     doc['Fees']            || '',
+    'f-timing':   doc['Timing']          || '',
+    'f-lang':     doc['Languages']       || '',
+    'f-address':  doc['Address']         || '',
+    'f-district': doc['District']        || '',
+    'f-city':     doc['City']            || '',
+    'f-tehsil':   doc['Tehsil']          || '',
+    'f-pin':      doc['PIN Code']        || '',
+    'f-bio':      doc['Bio']             || '',
+    'f-photo':    doc['Photo URL']       || '',
+    'f-linkedin': doc['LinkedIn']        || '',
+    'f-twitter':  doc['Twitter/X']       || '',
+    'f-facebook': doc['Facebook']        || '',
+    'f-instagram':doc['Instagram']       || '',
+    'f-youtube':  doc['YouTube']         || '',
+    'f-website':  doc['Website']         || '',
+    'f-practo':   doc['Practo']          || '',
+    'f-scholar':  doc['Google Scholar']  || '',
+  };
+
+  Object.entries(fieldMap).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (!el || !val) return;
+    if (el.tagName === 'SELECT') {
+      // Try to match option
+      Array.from(el.options).forEach(opt => {
+        if (opt.value === val || opt.text === val) opt.selected = true;
+      });
+    } else {
+      el.value = val;
+    }
+  });
+
+  // Handle "Other" specialization
+  const spec = doc['Specialization'] || '';
+  const specSelect = document.getElementById('f-spec');
+  if (specSelect) {
+    const hasOption = Array.from(specSelect.options).some(o => o.value === spec);
+    if (!hasOption && spec) {
+      specSelect.value = 'Other';
+      const otherField = document.getElementById('spec-other-field');
+      if (otherField) otherField.style.display = 'flex';
+      const otherInput = document.getElementById('f-spec-other');
+      if (otherInput) otherInput.value = spec;
+    }
+  }
+
+  // Validate mobile display
+  const mobileInput = document.getElementById('f-mobile');
+  if (mobileInput && mobileInput.value) validateMobile(mobileInput);
+
+  // Set mobile public toggle
+  const mobilePublic = doc['Mobile Public'] !== 'No';
+  const toggle = document.getElementById('f-mobile-public');
+  if (toggle) toggle.checked = mobilePublic;
+
+  // Mark OTP as already verified (skip requirement)
+  currentOTP  = 'EDIT_MODE_BYPASS';
+  otpExpiry   = Date.now() + 999 * 60 * 1000; // far future
+}
+
+// ============================================================
+//  PRE-FILL CV ENTRIES from existing doc
+// ============================================================
+function prefillCVEntries(doc) {
+  const types = {
+    Work:  { fields: ['Hospital','Position','From','To'],        container: 'work-entries' },
+    Edu:   { fields: ['Degree','Subject','College','Year'],      container: 'edu-entries'  },
+    Award: { fields: ['Title','By','Year'],                      container: 'award-entries'},
+    Pub:   { fields: ['Title','Journal','Year'],                 container: 'pub-entries'  }
+  };
+
+  Object.entries(types).forEach(([prefix, meta]) => {
+    // Find all existing entries for this type
+    let num = 1;
+    while (true) {
+      const firstKey = prefix + num + '_' + meta.fields[0];
+      if (!doc[firstKey]) break;
+
+      // Add an entry row
+      const container = document.getElementById(meta.container);
+      if (!container) break;
+
+      // Get the entry element just added
+      const entryCount = container.querySelectorAll('.cv-entry').length;
+      if (entryCount < num) addEntry(prefix.toLowerCase() === 'work' ? 'work' : prefix.toLowerCase() === 'edu' ? 'edu' : prefix.toLowerCase() === 'award' ? 'award' : 'pub');
+
+      // Wait a tick then fill values
+      setTimeout((() => {
+        const n = num;
+        const p = prefix;
+        const f = meta.fields;
+        return () => {
+          const entries = document.getElementById(meta.container).querySelectorAll('.cv-entry');
+          const entry   = entries[n - 1];
+          if (!entry) return;
+          f.forEach(field => {
+            const col = p + n + '_' + field;
+            const val = doc[col];
+            if (!val) return;
+            const inputs = entry.querySelectorAll('input[type="text"], input:not([type])');
+            inputs.forEach(inp => {
+              if (inp.placeholder === field) inp.value = val;
+            });
+          });
+        };
+      })(), 100 * num);
+
+      num++;
+    }
+  });
+}
 
 function updateProgress(active){
   for(let i=1;i<=7;i++){
@@ -476,27 +658,27 @@ async function sendOTP(){
 
 // CV entry templates
 const templates={
-  work:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">🏥 Experience #${n}</span><button class="btn-remove-entry" onclick="removeEntry('${id}')">✕ Remove</button></div>
+  work:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">🏥 Experience #${n}</span><button class="btn-remove-entry" type="button" onclick="removeEntry('${id}')">✕ Remove</button></div>
     <div class="field-grid">
       <div class="field full"><label>Hospital / Institute Name</label><input type="text" data-key="hospital" placeholder="e.g. AIIMS New Delhi"/></div>
       <div class="field full"><label>Position / Designation</label><input type="text" data-key="position" placeholder="e.g. Senior Resident, Consultant, HOD"/></div>
       <div class="field"><label>From Year</label><input type="text" data-key="from" placeholder="2015" maxlength="4" inputmode="numeric"/></div>
       <div class="field"><label>To Year</label><input type="text" data-key="to" placeholder="2020 or Present" maxlength="7"/></div>
     </div>`,
-  edu:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">🎓 Degree #${n}</span><button class="btn-remove-entry" onclick="removeEntry('${id}')">✕ Remove</button></div>
+  edu:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">🎓 Degree #${n}</span><button class="btn-remove-entry" type="button" onclick="removeEntry('${id}')">✕ Remove</button></div>
     <div class="field-grid">
       <div class="field"><label>Degree / Qualification</label><input type="text" data-key="degree" placeholder="e.g. MBBS, MD, DM"/></div>
       <div class="field"><label>Specialization / Subject</label><input type="text" data-key="subject" placeholder="e.g. Cardiology"/></div>
       <div class="field full"><label>College / University</label><input type="text" data-key="college" placeholder="e.g. SMS Medical College, Jaipur"/></div>
       <div class="field"><label>Year of Passing</label><input type="text" data-key="year" placeholder="2010" maxlength="4" inputmode="numeric"/></div>
     </div>`,
-  award:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">🏆 Award #${n}</span><button class="btn-remove-entry" onclick="removeEntry('${id}')">✕ Remove</button></div>
+  award:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">🏆 Award #${n}</span><button class="btn-remove-entry" type="button" onclick="removeEntry('${id}')">✕ Remove</button></div>
     <div class="field-grid">
       <div class="field full"><label>Award / Achievement Title</label><input type="text" data-key="title" placeholder="e.g. Best Doctor Award"/></div>
       <div class="field"><label>Awarded By</label><input type="text" data-key="by" placeholder="e.g. IMA Rajasthan"/></div>
       <div class="field"><label>Year</label><input type="text" data-key="year" placeholder="2022" maxlength="4" inputmode="numeric"/></div>
     </div>`,
-  pub:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">📄 Publication #${n}</span><button class="btn-remove-entry" onclick="removeEntry('${id}')">✕ Remove</button></div>
+  pub:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">📄 Publication #${n}</span><button class="btn-remove-entry" type="button" onclick="removeEntry('${id}')">✕ Remove</button></div>
     <div class="field-grid">
       <div class="field full"><label>Title</label><input type="text" data-key="title" placeholder="e.g. A study on cardiac outcomes in rural Rajasthan"/></div>
       <div class="field"><label>Journal / Conference</label><input type="text" data-key="journal" placeholder="e.g. Indian Journal of Cardiology"/></div>
@@ -531,6 +713,8 @@ async function submitForm(){
     {id:"f-district",label:"District"},{id:"f-city",label:"City / Town"},
   ];
   for(const r of required){
+    // In edit mode, only name is strictly required
+    if(isEditMode && r.id !== 'f-name') continue;
     const val=document.getElementById(r.id).value.trim();
     if(!val){showAlert("Please fill in: "+r.label,"error");document.getElementById(r.id).scrollIntoView({behavior:"smooth",block:"center"});document.getElementById(r.id).classList.add("err");return;}
     document.getElementById(r.id).classList.remove("err");
@@ -539,13 +723,16 @@ async function submitForm(){
     showAlert("Please specify your specialization.","error");document.getElementById("f-spec-other").scrollIntoView({behavior:"smooth",block:"center"});return;
   }
   const mobile=document.getElementById("f-mobile").value.trim();
-  if(!/^[6-9][0-9]{9}$/.test(mobile)){showAlert("Please enter a valid 10-digit Indian mobile number starting with 6,7,8 or 9.","error");document.getElementById("f-mobile").scrollIntoView({behavior:"smooth",block:"center"});return;}
+  if(!isEditMode && !/^[6-9][0-9]{9}$/.test(mobile)){showAlert("Please enter a valid 10-digit Indian mobile number starting with 6,7,8 or 9.","error");document.getElementById("f-mobile").scrollIntoView({behavior:"smooth",block:"center"});return;}
   const pin=document.getElementById("f-pin").value.trim();
   if(pin&&!/^[0-9]{6}$/.test(pin)){showAlert("PIN code must be exactly 6 digits.","error");return;}
-  const enteredOTP=document.getElementById("f-otp").value.trim();
-  if(!enteredOTP){showAlert("Please verify your email with OTP first.","error");return;}
-  if(Date.now()>otpExpiry){showAlert("OTP has expired. Please request a new one.","error");return;}
-  if(enteredOTP!==currentOTP){showAlert("Incorrect OTP. Please check and try again.","error");return;}
+  // Skip OTP check in edit mode — user is already logged in
+  if (!isEditMode) {
+    const enteredOTP=document.getElementById("f-otp").value.trim();
+    if(!enteredOTP){showAlert("Please verify your email with OTP first.","error");return;}
+    if(Date.now()>otpExpiry){showAlert("OTP has expired. Please request a new one.","error");return;}
+    if(enteredOTP!==currentOTP){showAlert("Incorrect OTP. Please check and try again.","error");return;}
+  }
   if(!document.getElementById("f-consent").checked){showAlert("Please read and accept the consent declaration.","error");document.getElementById("f-consent").scrollIntoView({behavior:"smooth",block:"center"});return;}
 
   const btn=document.getElementById("btn-submit");btn.disabled=true;btn.innerHTML='<div class="spin"></div> Submitting…';
@@ -618,8 +805,30 @@ async function submitForm(){
 
   try{
     if(!APPS_SCRIPT_URL)throw new Error("no url");
-    await fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({action:"register",sheetName:"Pending",data})});
-  }catch(e){if(e.message!=="no url"){showAlert("Submission failed: "+e.message,"error");btn.disabled=false;btn.innerHTML="Submit Registration →";return;}}
+
+    if (isEditMode) {
+      // Send as profile update request for admin approval
+      const userRaw = sessionStorage.getItem("rdd_user");
+      const user    = userRaw ? JSON.parse(userRaw) : {};
+      await fetch(APPS_SCRIPT_URL,{
+        method:"POST", mode:"no-cors",
+        headers:{"Content-Type":"text/plain"},
+        body:JSON.stringify({
+          action:   "profile_update",
+          email:    user.email || data["Email"] || "",
+          name:     data["Name"] || user.name || "",
+          changes:  data
+        })
+      });
+    } else {
+      // Normal new registration
+      await fetch(APPS_SCRIPT_URL,{
+        method:"POST", mode:"no-cors",
+        headers:{"Content-Type":"text/plain"},
+        body:JSON.stringify({action:"register",sheetName:"Pending",data})
+      });
+    }
+  }catch(e){if(e.message!=="no url"){showAlert("Submission failed: "+e.message,"error");btn.disabled=false;btn.innerHTML=isEditMode?"Submit Changes for Approval →":"Submit Registration →";return;}}
 
   clearInterval(otpTimerHnd);
   document.getElementById("success-name").textContent=document.getElementById("f-name").value.trim();
