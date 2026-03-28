@@ -122,6 +122,12 @@
     <div class="ps-item"><div class="ps-dot" id="pd7">7</div><div class="ps-label" id="pl7">Consent</div></div>
   </div>
 </div>
+<div id="edit-back-bar" style="display:none;max-width:720px;margin:16px auto 0;padding:0 20px">
+  <a href="rajasthan-doctors-single.html"
+    style="display:inline-flex;align-items:center;gap:6px;color:var(--maroon);font-size:14px;font-weight:600;text-decoration:none;padding:8px 14px;background:var(--maroon-lt);border-radius:8px;border:1px solid #F0C0CC">
+    ← Back to My Profile
+  </a>
+</div>
 <div class="form-wrap">
   <div class="form-card">
     <div class="success-screen" id="success-screen">
@@ -425,6 +431,9 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(EMAILJS_PUBLIC_KEY)emailjs.init({publicKey:EMAILJS_PUBLIC_KEY});
   updateProgress(1);
 
+  // Always add default CV entry rows first
+  addEntry('work'); addEntry('edu');
+
   // Check if opened in edit mode via sessionStorage
   try {
     const editFlag = sessionStorage.getItem("rdd_edit_mode");
@@ -436,15 +445,12 @@ document.addEventListener("DOMContentLoaded",()=>{
       sessionStorage.removeItem("rdd_edit_mode");
       sessionStorage.removeItem("rdd_edit_doc");
       enterEditMode(editDocData);
+      // Pre-fill CV entries after a short delay to ensure DOM is ready
+      setTimeout(() => prefillCVEntries(editDocData), 200);
     }
   } catch(e) {
     console.error('Edit mode load error:', e);
   }
-
-  addEntry('work'); addEntry('edu');
-
-  // Pre-fill CV entries if in edit mode
-  if (isEditMode && editDocData) prefillCVEntries(editDocData);
 
   const obs=new IntersectionObserver(es=>{
     es.forEach(e=>{if(e.isIntersecting){const m={"sec1":1,"sec2":2,"sec3":3,"sec4":4,"sec5":5,"sec6":6,"sec7":7};if(m[e.target.id])updateProgress(m[e.target.id]);}});
@@ -561,20 +567,12 @@ function enterEditMode(doc) {
   const successBtn = document.getElementById('btn-success-back');
   if (successBtn) {
     successBtn.textContent = 'Back to Directory';
-    successBtn.onclick = () => { window.location.href = 'rajasthan-doctors-single.html'; };
+    successBtn.setAttribute('onclick', "window.location.href='rajasthan-doctors-single.html'");
   }
 
-  // Add "Back to Profile" link in header area
-  const formWrap = document.querySelector('.form-wrap');
-  if (formWrap) {
-    const backBar = document.createElement('div');
-    backBar.style.cssText = 'margin-bottom:12px;';
-    backBar.innerHTML = `<a href="rajasthan-doctors-single.html"
-      style="display:inline-flex;align-items:center;gap:6px;color:var(--maroon);font-size:13px;font-weight:600;text-decoration:none;padding:8px 0">
-      ← Back to My Profile
-    </a>`;
-    formWrap.insertBefore(backBar, formWrap.firstChild);
-  }
+  // Show the back link bar
+  const backBar = document.getElementById('edit-back-bar');
+  if (backBar) backBar.style.display = 'block';
 }
 
 // ============================================================
