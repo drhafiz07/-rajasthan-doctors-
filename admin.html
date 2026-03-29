@@ -643,6 +643,28 @@ function showToast(msg, type = "") {
   toastTimer = setTimeout(() => t.className = "toast", 3500);
 }
 
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], nx = text[i+1];
+    if (inQ) {
+      if (ch === '"' && nx === '"') { field += '"'; i++; }
+      else if (ch === '"') inQ = false;
+      else field += ch;
+    } else {
+      if (ch === '"') inQ = true;
+      else if (ch === ',') { row.push(field); field = ""; }
+      else if (ch === '\n' || (ch === '\r' && nx === '\n')) {
+        if (ch === '\r') i++;
+        row.push(field); rows.push(row); row = []; field = "";
+      } else field += ch;
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
 function escHTML(str) {
   return String(str || "")
     .replace(/&/g,"&amp;").replace(/</g,"&lt;")
@@ -683,43 +705,24 @@ async function loadPending() {
   document.getElementById("pending-loading").style.display = "block";
   document.getElementById("pending-list").innerHTML = "";
 
-  // Use CSV endpoint for Pending tab — more reliable for named tabs
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Pending&t=${Date.now()}`;
+  // Use CSV endpoint — reliable header reading
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Pending&t=${Date.now()}`;
   try {
-    const res  = await fetch(url, { mode: "cors" });
-    const raw  = await res.text();
-    const match = raw.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
-    if (!match) throw new Error("Could not parse response from Google Sheets.");
-    const json = JSON.parse(match[1]);
-
-    if (json.status === "error") throw new Error(json.errors[0].message);
-
-    const table = json.table;
-    if (!table || !table.cols) throw new Error("No data found in Pending tab.");
-
-    // Get column headers — prefer label over id
-    const cols = table.cols.map(c => (c.label && c.label.trim() ? c.label.trim() : (c.id || "").trim()));
-    console.log("Pending tab columns:", cols);
-
-    const rows = (table.rows || []).map((row, i) => {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) throw new Error("HTTP " + res.status + " — Is the Pending sheet published?");
+    const csv = await res.text();
+    const csvRows = parseCSV(csv);
+    if (!csvRows || csvRows.length < 2) throw new Error("Pending sheet is empty. Submit a registration first.");
+    const cols = csvRows[0].map(h => h.trim());
+    const allRows = csvRows.slice(1).map((row, i) => {
       const doc = { _row: i + 2 };
-      cols.forEach((col, ci) => {
-        const cell = row.c && row.c[ci];
-        doc[col] = cell && cell.v != null ? String(cell.v).trim() : "";
-      });
+      cols.forEach((col, ci) => { doc[col] = (row[ci] || "").trim(); });
       return doc;
     }).filter(doc => cols.some(c => c && doc[c]));
-
-    console.log("Total rows in Pending tab:", rows.length);
-
-    // Only show Pending status rows
-    // Debug: log all rows to see what's coming
-    // Filter: show rows where Status is "Pending" or empty (case-insensitive, trimmed)
-    const pending = rows.filter(d => {
-      const status = (d["Status"] || d["status"] || "").toString().trim().toLowerCase();
-      return status === "pending" || status === "";
+    const pending = allRows.filter(d => {
+      const s = (d["Status"] || "").toLowerCase().trim();
+      return s === "pending" || s === "";
     });
-    console.log("Pending rows after filter:", pending.length, "of", rows.length);
     const badge   = document.getElementById("pending-badge");
     if (pending.length > 0) {
       badge.textContent = pending.length;
@@ -869,31 +872,27 @@ async function loadProfileUpdates() {
   document.getElementById("updates-loading").style.display = "block";
   document.getElementById("updates-list").innerHTML = "";
 
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Profile%20Updates&t=${Date.now()}`;
+  // Use CSV for reliable header reading
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Profile%20Updates&t=${Date.now()}`;
   try {
-    const res   = await fetch(url, { mode: "cors" });
-    const raw   = await res.text();
-    const match = raw.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
-    if (!match) throw new Error("Profile Updates sheet not found. Please run setupSheets() in Apps Script first.");
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) throw new Error("Profile Updates sheet not found (HTTP " + res.status + "). Run setupSheets() in Apps Script first.");
+    const csv = await res.text();
 
-    const json  = JSON.parse(match[1]);
-    if (json.status === "error") throw new Error(json.errors[0].message);
+    const rows = parseCSV(csv);
+    if (!rows || rows.length < 2) throw new Error("Profile Updates sheet is empty.");
 
-    const table = json.table;
-    if (!table || !table.cols) throw new Error("No data in Profile Updates sheet.");
-
-    const cols = table.cols.map(c => (c.label && c.label.trim() ? c.label.trim() : c.id || "").trim());
-    const rows = (table.rows || []).map((row, i) => {
+    const cols = rows[0].map(h => h.trim());
+    const allRows = rows.slice(1).map((row, i) => {
       const doc = { _row: i + 2 };
-      cols.forEach((col, ci) => {
-        const cell = row.c && row.c[ci];
-        doc[col] = cell && cell.v != null ? String(cell.v).trim() : "";
-      });
+      cols.forEach((col, ci) => { doc[col] = (row[ci] || "").trim(); });
       return doc;
     }).filter(doc => cols.some(c => c && doc[c]));
 
-    // Only show Pending status
-    const pending = rows.filter(d => !d.Status || d.Status === "Pending");
+    const pending = allRows.filter(d => {
+      const s = (d["Status"] || "").toLowerCase().trim();
+      return s === "pending" || s === "";
+    });
 
     const badge = document.getElementById("updates-badge");
     if (pending.length > 0) { badge.textContent = pending.length; badge.style.display = "inline-flex"; }
