@@ -149,7 +149,18 @@
     .nav-tab { padding: 8px 18px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--ink-3); border: none; background: none; font-family: 'DM Sans', sans-serif; transition: all .15s; white-space: nowrap; }
     .nav-tab.active { background: var(--white); color: var(--maroon); font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
     .badge-count { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: var(--maroon); color: #fff; border-radius: 50%; font-size: 10px; font-weight: 700; margin-left: 6px; }
-    .pending-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 12px; display: flex; align-items: flex-start; gap: 14px; box-shadow: var(--shadow); }
+    .pending-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 16px; box-shadow: var(--shadow); overflow: hidden; }
+    .pending-card-header { padding: 16px 20px; display: flex; align-items: flex-start; gap: 14px; cursor: pointer; background: var(--sand); border-bottom: 1px solid var(--border); }
+    .pending-card-header:hover { background: #EDE8E0; }
+    .pending-card-body { display: none; padding: 0 20px 16px; }
+    .pending-card-body.open { display: block; }
+    .profile-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin: 14px 0; }
+    .profile-view-row { display: flex; flex-direction: column; gap: 2px; }
+    .profile-view-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-3); }
+    .profile-view-value { font-size: 14px; color: var(--ink-2); word-break: break-word; }
+    .profile-view-full { grid-column: 1/-1; }
+    .section-divider { grid-column: 1/-1; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--maroon); padding: 10px 0 4px; border-bottom: 1px solid var(--maroon-lt); margin-top: 6px; }
+    .expand-hint { font-size: 11px; color: var(--ink-3); margin-left: auto; flex-shrink: 0; padding-top: 2px; }
     .pending-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--maroon-lt); border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-size: 18px; color: var(--maroon); font-weight: 700; flex-shrink: 0; }
     .pending-info { flex: 1; }
     .pending-name { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 3px; }
@@ -729,30 +740,69 @@ async function loadPending() {
       const name    = doc["Name"]           || "Unknown";
       const spec    = doc["Specialization"] || "";
       const city    = doc["City"]           || "";
-      const hosp    = doc["Hospital"]       || "";
-      const qual    = doc["Qualification"]  || "";
-      const contact = doc["Contact"]        || "";
       const email   = doc["Email"]          || "";
       const date    = doc["Submitted At"]   || "";
       const ini     = name.split(" ").slice(0,2).map(w=>w[0]||"").join("").toUpperCase();
+      const cardId  = "pcard-" + doc._row;
 
-      return `<div class="pending-card" data-row="${doc._row}">
-        <div class="pending-avatar">${escHTML(ini)}</div>
-        <div class="pending-info">
-          <div class="pending-name">${escHTML(name)}</div>
-          <div class="pending-meta">
-            🏥 ${escHTML(hosp)} &nbsp;·&nbsp; 🎓 ${escHTML(qual)}<br/>
-            📞 ${escHTML(contact)} &nbsp;·&nbsp; ✉️ ${escHTML(email)}
+      // Build all fields grouped by section
+      const skipCols = new Set(["Status","Submitted At","Contact (Admin)","Mobile Public","_row"]);
+      const sectionGroups = {
+        "Personal":    ["Name","Gender","Contact","Email","Mobile Public"],
+        "Professional":["Specialization","Hospital","Position","Registration No","Fees","Timing","Languages","Address"],
+        "Location":    ["City","District","Tehsil","PIN Code"],
+        "Bio":         ["Bio"],
+        "Social":      ["LinkedIn","Twitter/X","Facebook","Instagram","YouTube","Website","Practo","Google Scholar"]
+      };
+
+      let fieldsHTML = "";
+      // Show grouped fields
+      Object.entries(sectionGroups).forEach(([secName, secCols]) => {
+        const sectionFields = secCols.filter(c => doc[c] && doc[c].trim());
+        if (sectionFields.length === 0) return;
+        fieldsHTML += `<div class="section-divider">${escHTML(secName)}</div>`;
+        sectionFields.forEach(c => {
+          const val = doc[c];
+          const isUrl = /^https?:\/\//i.test(val);
+          fieldsHTML += `<div class="profile-view-row">
+            <span class="profile-view-label">${escHTML(c)}</span>
+            <span class="profile-view-value">${isUrl ? `<a href="${escHTML(val)}" target="_blank" style="color:var(--blue)">${escHTML(val)}</a>` : escHTML(val)}</span>
+          </div>`;
+        });
+      });
+
+      // Show CV entries (Work, Edu, Award, Pub)
+      const cvKeys = cols.filter(c => /^(Work|Edu|Award|Pub)\d+_/.test(c) && doc[c] && doc[c].trim());
+      if (cvKeys.length > 0) {
+        fieldsHTML += `<div class="section-divider">CV / Experience</div>`;
+        cvKeys.forEach(c => {
+          fieldsHTML += `<div class="profile-view-row">
+            <span class="profile-view-label">${escHTML(c)}</span>
+            <span class="profile-view-value">${escHTML(doc[c])}</span>
+          </div>`;
+        });
+      }
+
+      return `<div class="pending-card" data-row="${doc._row}" id="${cardId}">
+        <div class="pending-card-header" onclick="togglePendingCard('${cardId}')">
+          <div class="pending-avatar">${escHTML(ini)}</div>
+          <div class="pending-info">
+            <div class="pending-name">${escHTML(name)}</div>
+            <div class="pending-meta">✉️ ${escHTML(email)}</div>
+            <div class="pending-tags">
+              ${spec ? `<span class="ptag ptag-spec">${escHTML(spec)}</span>` : ""}
+              ${city ? `<span class="ptag ptag-city">📍 ${escHTML(city)}</span>` : ""}
+              ${date ? `<span class="ptag ptag-date">🕐 ${escHTML(date)}</span>` : ""}
+            </div>
           </div>
-          <div class="pending-tags">
-            ${spec    ? `<span class="ptag ptag-spec">${escHTML(spec)}</span>` : ""}
-            ${city    ? `<span class="ptag ptag-city">📍 ${escHTML(city)}</span>` : ""}
-            ${date    ? `<span class="ptag ptag-date">🕐 ${escHTML(date)}</span>` : ""}
-          </div>
+          <div class="expand-hint" id="hint-${cardId}">▼ View full profile</div>
         </div>
-        <div class="pending-actions">
-          <button class="btn-approve" onclick="approveDoctor(${doc._row}, '${escHTML(name)}')">✓ Approve</button>
-          <button class="btn-reject"  onclick="rejectDoctor(${doc._row},  '${escHTML(name)}')">✕ Reject</button>
+        <div class="pending-card-body" id="body-${cardId}">
+          <div class="profile-field-grid">${fieldsHTML}</div>
+          <div style="display:flex;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+            <button class="btn-approve" onclick="approveDoctor(${doc._row}, '${escHTML(name)}', '${escHTML(email)}')">✓ Approve & Add to Directory</button>
+            <button class="btn-reject"  onclick="rejectDoctor(${doc._row}, '${escHTML(name)}', '${escHTML(email)}')">✕ Reject</button>
+          </div>
         </div>
       </div>`;
     }).join("");
@@ -766,18 +816,17 @@ async function loadPending() {
 // ============================================================
 //  APPROVE / REJECT
 // ============================================================
-async function approveDoctor(rowNum, name) {
+async function approveDoctor(rowNum, name, email) {
   if (!APPS_SCRIPT_URL) { showToast("⚙️ Apps Script URL not configured.", "error"); return; }
   if (!confirm("Approve Dr. " + name + " and add to the directory?")) return;
   showToast("Approving…");
-  // Instantly remove card from UI
   const card = document.querySelector('[data-row="' + rowNum + '"]');
   if (card) { card.style.opacity = "0.3"; card.style.pointerEvents = "none"; }
   try {
     await fetch(APPS_SCRIPT_URL, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ action: "approve", rowIndex: rowNum, approvedSheet: "Sheet1" })
+      body: JSON.stringify({ action: "approve", rowIndex: rowNum, email: email, approvedSheet: "Sheet1" })
     });
     showToast("✓ " + name + " approved!", "success");
     if (card) card.remove();
@@ -790,7 +839,7 @@ async function approveDoctor(rowNum, name) {
   }
 }
 
-async function rejectDoctor(rowNum, name) {
+async function rejectDoctor(rowNum, name, email) {
   if (!APPS_SCRIPT_URL) { showToast("⚙️ Apps Script URL not configured.", "error"); return; }
   if (!confirm("Reject application from Dr. " + name + "?")) return;
   showToast("Rejecting…");
@@ -800,7 +849,7 @@ async function rejectDoctor(rowNum, name) {
     await fetch(APPS_SCRIPT_URL, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ action: "reject", rowIndex: rowNum })
+      body: JSON.stringify({ action: "reject", rowIndex: rowNum, email: email })
     });
     showToast("Application rejected.", "");
     if (card) card.remove();
@@ -859,48 +908,91 @@ async function loadProfileUpdates() {
     }
 
     document.getElementById("updates-list").innerHTML = pending.map(doc => {
-      const email   = doc["Email"]        || "";
-      const name    = doc["Name"]         || "Unknown";
+      const email   = doc["Email"]             || "";
+      const name    = doc["Name"]              || "Unknown";
       const changes = doc["Requested Changes"] || "{}";
-      const date    = doc["Submitted At"] || "";
+      const date    = doc["Submitted At"]      || "";
+      const cardId  = "ucard-" + doc._row;
+      const ini     = name.split(" ").slice(0,2).map(w=>w[0]||"").join("").toUpperCase();
 
+      // Parse and display ALL changes
       let changesHTML = "";
+      let changeCount = 0;
       try {
         const changesObj = JSON.parse(changes);
-        // Only show meaningful editable fields — skip internal ones
-        const skipShow = new Set(["Status","Submitted At","Contact (Admin)","Mobile Public","Email","_row"]);
-        const entries  = Object.entries(changesObj)
-          .filter(([k,v]) => !skipShow.has(k) && v && String(v).trim());
+        const skipShow   = new Set(["Status","Submitted At","Contact (Admin)","Mobile Public","_row"]);
+        const entries    = Object.entries(changesObj).filter(([k,v]) => !skipShow.has(k) && v && String(v).trim());
+        changeCount      = entries.length;
+
         if (entries.length === 0) {
-          changesHTML = '<div class="update-change-row"><span class="update-change-val" style="color:var(--ink-3);font-style:italic">No visible changes.</span></div>';
+          changesHTML = '<p style="color:var(--ink-3);font-size:13px;font-style:italic">No changes found.</p>';
         } else {
-          changesHTML = entries.map(([k, v]) => {
-            const displayVal = String(v).length > 150 ? String(v).substring(0,150) + "…" : String(v);
-            return `<div class="update-change-row">
-              <span class="update-change-field">${escHTML(k)}</span>
-              <span class="update-change-val">${escHTML(displayVal)}</span>
-            </div>`;
-          }).join("");
+          // Group by section
+          const sectionMap = {
+            "Personal":    ["Name","Gender","Contact","Email"],
+            "Professional":["Specialization","Hospital","Position","Registration No","Fees","Timing","Languages","Address"],
+            "Location":    ["City","District","Tehsil","PIN Code"],
+            "Bio":         ["Bio"],
+            "Social":      ["LinkedIn","Twitter/X","Facebook","Instagram","YouTube","Website","Practo","Google Scholar"]
+          };
+
+          const grouped   = {};
+          const ungrouped = [];
+          entries.forEach(([k,v]) => {
+            let placed = false;
+            for (const [sec, cols] of Object.entries(sectionMap)) {
+              if (cols.includes(k)) {
+                if (!grouped[sec]) grouped[sec] = [];
+                grouped[sec].push([k,v]);
+                placed = true; break;
+              }
+            }
+            if (!placed) ungrouped.push([k,v]);
+          });
+
+          Object.entries(grouped).forEach(([sec, items]) => {
+            changesHTML += `<div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--maroon);margin:10px 0 6px;letter-spacing:.4px">${escHTML(sec)}</div>`;
+            items.forEach(([k,v]) => {
+              const isUrl = /^https?:\/\//i.test(String(v));
+              changesHTML += `<div class="update-change-row">
+                <span class="update-change-field">${escHTML(k)}</span>
+                <span class="update-change-val">${isUrl ? `<a href="${escHTML(String(v))}" target="_blank" style="color:var(--blue)">${escHTML(String(v).substring(0,80))}</a>` : escHTML(String(v).substring(0,200))}</span>
+              </div>`;
+            });
+          });
+
+          if (ungrouped.length > 0) {
+            changesHTML += `<div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--maroon);margin:10px 0 6px;letter-spacing:.4px">CV / Other</div>`;
+            ungrouped.forEach(([k,v]) => {
+              changesHTML += `<div class="update-change-row">
+                <span class="update-change-field">${escHTML(k)}</span>
+                <span class="update-change-val">${escHTML(String(v).substring(0,200))}</span>
+              </div>`;
+            });
+          }
         }
       } catch(e) {
-        changesHTML = `<div class="update-change-row"><span class="update-change-val" style="color:var(--red)">Parse error: ${escHTML(String(e.message))}</span></div>`;
+        changesHTML = `<p style="color:var(--red);font-size:13px">Could not read changes: ${escHTML(String(e.message))}</p>`;
       }
 
-      return `<div class="update-card" data-update-row="${doc._row}">
-        <div class="update-card-head">
-          <div>
-            <div class="update-doctor-name">Dr. ${escHTML(name)}</div>
-            <div class="update-doctor-email">${escHTML(email)}</div>
+      return `<div class="update-card" data-update-row="${doc._row}" id="${cardId}">
+        <div class="update-card-head" style="cursor:pointer" onclick="toggleUpdateCard('${cardId}')">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="pending-avatar" style="flex-shrink:0">${escHTML(ini)}</div>
+            <div>
+              <div class="update-doctor-name">Dr. ${escHTML(name)}</div>
+              <div class="update-doctor-email">✉️ ${escHTML(email)}</div>
+              <div style="font-size:11px;color:var(--ink-3);margin-top:3px">${changeCount} field${changeCount!==1?'s':''} changed &nbsp;·&nbsp; ${escHTML(date)}</div>
+            </div>
           </div>
-          <div class="update-date">${escHTML(date)}</div>
+          <div style="font-size:11px;color:var(--ink-3);white-space:nowrap" id="uhint-${cardId}">▼ View changes</div>
         </div>
-        <div class="update-changes">
-          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-3);margin-bottom:8px">Requested Changes</div>
-          ${changesHTML}
-        </div>
-        <div class="update-actions">
-          <button class="btn-approve-update" onclick="approveProfileUpdate(${doc._row}, '${escHTML(name)}', '${escHTML(email)}')">✓ Approve & Apply</button>
-          <button class="btn-reject-update"  onclick="rejectProfileUpdate(${doc._row}, '${escHTML(name)}')">✕ Reject</button>
+        <div id="ubody-${cardId}" style="display:none">
+          <div class="update-changes" style="margin:0;border-radius:0;border-left:none;border-right:none">${changesHTML}</div>
+          <div class="update-actions" style="padding:14px 20px">
+            <button class="btn-approve-update" onclick="approveProfileUpdate(${doc._row}, '${escHTML(name)}', '${escHTML(email)}')">✓ Approve & Apply All Changes</button>
+            <button class="btn-reject-update"  onclick="rejectProfileUpdate(${doc._row}, '${escHTML(name)}')">✕ Reject</button>
+          </div>
         </div>
       </div>`;
     }).join("");
@@ -972,6 +1064,26 @@ async function rejectProfileUpdate(rowNum, name) {
     showToast("Error: " + err.message, "error");
     if (uCard2) { uCard2.style.opacity = "1"; uCard2.style.pointerEvents = "auto"; }
   }
+}
+
+// ============================================================
+//  TOGGLE EXPANDABLE CARDS
+// ============================================================
+function togglePendingCard(cardId) {
+  const body = document.getElementById("body-" + cardId);
+  const hint = document.getElementById("hint-" + cardId);
+  if (!body) return;
+  const isOpen = body.classList.toggle("open");
+  if (hint) hint.textContent = isOpen ? "▲ Collapse" : "▼ View full profile";
+}
+
+function toggleUpdateCard(cardId) {
+  const body = document.getElementById("ubody-" + cardId);
+  const hint = document.getElementById("uhint-" + cardId);
+  if (!body) return;
+  const isOpen = body.style.display === "block";
+  body.style.display = isOpen ? "none" : "block";
+  if (hint) hint.textContent = isOpen ? "▼ View changes" : "▲ Collapse";
 }
 
 // Start loading if already logged in
