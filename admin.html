@@ -736,7 +736,7 @@ async function loadPending() {
       const date    = doc["Submitted At"]   || "";
       const ini     = name.split(" ").slice(0,2).map(w=>w[0]||"").join("").toUpperCase();
 
-      return `<div class="pending-card">
+      return `<div class="pending-card" data-row="${doc._row}">
         <div class="pending-avatar">${escHTML(ini)}</div>
         <div class="pending-info">
           <div class="pending-name">${escHTML(name)}</div>
@@ -769,35 +769,48 @@ async function loadPending() {
 async function approveDoctor(rowNum, name) {
   if (!APPS_SCRIPT_URL) { showToast("⚙️ Apps Script URL not configured.", "error"); return; }
   if (!confirm("Approve Dr. " + name + " and add to the directory?")) return;
-
   showToast("Approving…");
+  // Instantly remove card from UI
+  const card = document.querySelector('[data-row="' + rowNum + '"]');
+  if (card) { card.style.opacity = "0.3"; card.style.pointerEvents = "none"; }
   try {
     await fetch(APPS_SCRIPT_URL, {
-      method: "POST",
-      mode: "no-cors",
+      method: "POST", mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({ action: "approve", rowIndex: rowNum, approvedSheet: "Sheet1" })
     });
-    showToast("✓ " + name + " approved and added to directory!", "success");
-    setTimeout(() => loadPending(), 4000);
-  } catch(err) { showToast("Error: " + err.message, "error"); }
+    showToast("✓ " + name + " approved!", "success");
+    if (card) card.remove();
+    const list = document.getElementById("pending-list");
+    if (list && !list.querySelector(".pending-card")) list.innerHTML = '<div class="empty-pending">🎉 No pending applications right now.</div>';
+    setTimeout(() => loadPending(), 3000);
+  } catch(err) {
+    showToast("Error: " + err.message, "error");
+    if (card) { card.style.opacity = "1"; card.style.pointerEvents = "auto"; }
+  }
 }
 
 async function rejectDoctor(rowNum, name) {
   if (!APPS_SCRIPT_URL) { showToast("⚙️ Apps Script URL not configured.", "error"); return; }
   if (!confirm("Reject application from Dr. " + name + "?")) return;
-
   showToast("Rejecting…");
+  const card = document.querySelector('[data-row="' + rowNum + '"]');
+  if (card) { card.style.opacity = "0.3"; card.style.pointerEvents = "none"; }
   try {
     await fetch(APPS_SCRIPT_URL, {
-      method: "POST",
-      mode: "no-cors",
+      method: "POST", mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({ action: "reject", rowIndex: rowNum })
     });
     showToast("Application rejected.", "");
-    setTimeout(() => loadPending(), 4000);
-  } catch(err) { showToast("Error: " + err.message, "error"); }
+    if (card) card.remove();
+    const list = document.getElementById("pending-list");
+    if (list && !list.querySelector(".pending-card")) list.innerHTML = '<div class="empty-pending">🎉 No pending applications right now.</div>';
+    setTimeout(() => loadPending(), 3000);
+  } catch(err) {
+    showToast("Error: " + err.message, "error");
+    if (card) { card.style.opacity = "1"; card.style.pointerEvents = "auto"; }
+  }
 }
 
 // ============================================================
@@ -852,27 +865,28 @@ async function loadProfileUpdates() {
       const date    = doc["Submitted At"] || "";
 
       let changesHTML = "";
-      let changesObj  = {};
       try {
-        changesObj  = JSON.parse(changes);
-        // Filter out internal/admin fields from display
-        const skipShow = new Set(["Status","Submitted At","Contact (Admin)","Mobile Public","Email"]);
-        const entries  = Object.entries(changesObj).filter(([k]) => !skipShow.has(k) && k !== "_row");
+        const changesObj = JSON.parse(changes);
+        // Only show meaningful editable fields — skip internal ones
+        const skipShow = new Set(["Status","Submitted At","Contact (Admin)","Mobile Public","Email","_row"]);
+        const entries  = Object.entries(changesObj)
+          .filter(([k,v]) => !skipShow.has(k) && v && String(v).trim());
         if (entries.length === 0) {
-          changesHTML = '<div class="update-change-row"><span class="update-change-val" style="color:var(--ink-3)">No changes detected.</span></div>';
+          changesHTML = '<div class="update-change-row"><span class="update-change-val" style="color:var(--ink-3);font-style:italic">No visible changes.</span></div>';
         } else {
-          changesHTML = entries.map(([k, v]) =>
-            `<div class="update-change-row">
+          changesHTML = entries.map(([k, v]) => {
+            const displayVal = String(v).length > 150 ? String(v).substring(0,150) + "…" : String(v);
+            return `<div class="update-change-row">
               <span class="update-change-field">${escHTML(k)}</span>
-              <span class="update-change-val">${escHTML(String(v).substring(0,200))}${String(v).length>200?'…':''}</span>
-            </div>`
-          ).join("");
+              <span class="update-change-val">${escHTML(displayVal)}</span>
+            </div>`;
+          }).join("");
         }
       } catch(e) {
-        changesHTML = `<div class="update-change-row"><span class="update-change-val" style="color:var(--ink-3)">Could not parse changes. Raw: ${escHTML(changes.substring(0,200))}</span></div>`;
+        changesHTML = `<div class="update-change-row"><span class="update-change-val" style="color:var(--red)">Parse error: ${escHTML(String(e.message))}</span></div>`;
       }
 
-      return `<div class="update-card">
+      return `<div class="update-card" data-update-row="${doc._row}">
         <div class="update-card-head">
           <div>
             <div class="update-doctor-name">Dr. ${escHTML(name)}</div>
@@ -908,8 +922,9 @@ async function approveProfileUpdate(rowNum, name, email) {
   if (!confirm("Approve and apply changes for Dr. " + name + "?")) return;
 
   showToast("Applying changes…");
+  const uCard = document.querySelector('[data-update-row="' + rowNum + '"]');
+  if (uCard) { uCard.style.opacity = "0.3"; uCard.style.pointerEvents = "none"; }
   try {
-    // Pass rowNum and email — Apps Script will read changes directly from sheet
     await fetch(APPS_SCRIPT_URL, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
@@ -922,9 +937,13 @@ async function approveProfileUpdate(rowNum, name, email) {
       })
     });
     showToast("✓ Profile update approved and applied!", "success");
-    setTimeout(() => loadProfileUpdates(), 4000);
+    if (uCard) uCard.remove();
+    const uList = document.getElementById("updates-list");
+    if (uList && !uList.querySelector(".update-card")) uList.innerHTML = '<div class="empty-pending">✅ No pending profile update requests.</div>';
+    setTimeout(() => loadProfileUpdates(), 3000);
   } catch(err) {
     showToast("Error: " + err.message, "error");
+    if (uCard) { uCard.style.opacity = "1"; uCard.style.pointerEvents = "auto"; }
   }
 }
 
@@ -936,6 +955,8 @@ async function rejectProfileUpdate(rowNum, name) {
   if (!confirm("Reject update request from Dr. " + name + "?")) return;
 
   showToast("Rejecting…");
+  const uCard2 = document.querySelector('[data-update-row="' + rowNum + '"]');
+  if (uCard2) { uCard2.style.opacity = "0.3"; uCard2.style.pointerEvents = "none"; }
   try {
     await fetch(APPS_SCRIPT_URL, {
       method: "POST", mode: "no-cors",
@@ -943,9 +964,13 @@ async function rejectProfileUpdate(rowNum, name) {
       body: JSON.stringify({ action: "reject_update", rowIndex: rowNum })
     });
     showToast("Update request rejected.", "");
-    setTimeout(() => loadProfileUpdates(), 4000);
+    if (uCard2) uCard2.remove();
+    const uList2 = document.getElementById("updates-list");
+    if (uList2 && !uList2.querySelector(".update-card")) uList2.innerHTML = '<div class="empty-pending">✅ No pending profile update requests.</div>';
+    setTimeout(() => loadProfileUpdates(), 3000);
   } catch(err) {
     showToast("Error: " + err.message, "error");
+    if (uCard2) { uCard2.style.opacity = "1"; uCard2.style.pointerEvents = "auto"; }
   }
 }
 
