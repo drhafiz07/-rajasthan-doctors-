@@ -745,7 +745,7 @@ function buildCard(doc) {
   const placeholderHTML = `<div class="card-avatar-placeholder" ${photo ? 'style="display:none"' : ""}>${initials(name)}</div>`;
 
   // Show only first 3 non-skipped, non-empty columns
-  const previewCols = columns.filter(col => !skipKeys.has(col) && doc[col]).slice(0, 3);
+  const previewCols = columns.filter(col => !skipKeys.has(col) && doc[col] && doc[col] !== '[Private]').slice(0, 3);
 
   const fieldRows = previewCols.map(col => {
     const m = getMeta(col);
@@ -808,13 +808,26 @@ function openModal(cardEl) {
   specEl.textContent = spec;
   specEl.style.display = spec ? "inline-block" : "none";
 
-  const skipKeys = new Set([nameCol, photoCol, specCol].filter(Boolean));
+  // Columns to always hide from public
+  const adminCols = new Set(["Contact (Admin)","Mobile Public","Status","Submitted At","_row"]);
+  const skipKeys  = new Set([nameCol, photoCol, specCol].filter(Boolean));
+
+  // Check if mobile is private
+  const contactCol = columns.find(c => /^contact$/i.test(c));
+  const isPrivate  = contactCol && doc[contactCol] === "[Private]";
+
+  const privateNotice = isPrivate
+    ? `<div class="modal-field">
+        <span class="modal-field-icon">📞</span>
+        <span class="modal-field-label">Contact</span>
+        <span class="modal-field-value" style="color:var(--ink-3);font-style:italic">🔒 Private — not shown publicly</span>
+      </div>` : "";
+
   const fieldsHTML = columns
-    .filter(col => !skipKeys.has(col) && doc[col])
+    .filter(col => !skipKeys.has(col) && !adminCols.has(col) && doc[col] && doc[col] !== "[Private]")
     .map(col => {
-      const m = getMeta(col);
+      const m   = getMeta(col);
       const val = doc[col];
-      // Render social/URL fields as clickable links
       const isSocial = m.social || /^https?:\/\//i.test(val);
       const valueHTML = isSocial
         ? `<a href="${escHTML(val)}" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none;word-break:break-all">${escHTML(val)}</a>`
@@ -827,7 +840,7 @@ function openModal(cardEl) {
     }).join("");
 
   document.getElementById("modal-fields").innerHTML =
-    fieldsHTML || '<p style="color:var(--ink-3);font-size:14px;padding:12px 0">No additional details.</p>';
+    privateNotice + (fieldsHTML || '<p style="color:var(--ink-3);font-size:14px;padding:12px 0">No additional details.</p>');
 
   document.getElementById("modal-overlay").classList.add("open");
   document.body.style.overflow = "hidden";

@@ -38,6 +38,17 @@ function setupSheets() {
     msgs.push("Profile Updates tab already exists.");
   }
 
+  let usersSheet = ss.getSheetByName("Users");
+  if (!usersSheet) {
+    usersSheet = ss.insertSheet("Users");
+    usersSheet.appendRow(["Name","Email","Mobile","Joined At","Is Doctor"]);
+    usersSheet.getRange(1,1,1,5).setFontWeight("bold").setBackground("#2D7A3A").setFontColor("#FFFFFF");
+    usersSheet.setFrozenRows(1);
+    msgs.push("Users tab created.");
+  } else {
+    msgs.push("Users tab already exists.");
+  }
+
   SpreadsheetApp.getUi().alert("Setup complete!\n\n" + msgs.join("\n"));
 }
 
@@ -81,10 +92,21 @@ function doPost(e) {
       if (!pending)  throw new Error("Pending sheet not found.");
       if (!approved) throw new Error("Approved sheet (Sheet1) not found.");
 
-      const pRow      = parseInt(payload.rowIndex);
-      const pendHdrs  = pending.getRange(1,1,1,pending.getLastColumn()).getValues()[0].map(h => String(h).trim());
-      const rowData   = pending.getRange(pRow,1,1,pending.getLastColumn()).getValues()[0];
-      const dataObj   = {};
+      const pendHdrs = pending.getRange(1,1,1,pending.getLastColumn()).getValues()[0].map(h => String(h).trim());
+      const emailCol = pendHdrs.indexOf("Email");
+
+      // Find row by email (more reliable than row index which shifts after deletions)
+      const email  = (payload.email || "").toLowerCase().trim();
+      const allRows = pending.getRange(2,1,Math.max(pending.getLastRow()-1,1),pending.getLastColumn()).getValues();
+      let pRow = -1;
+      allRows.forEach((r,i) => {
+        if (emailCol > -1 && String(r[emailCol]).toLowerCase().trim() === email) pRow = i + 2;
+      });
+      // Fallback to rowIndex if email not found
+      if (pRow === -1) pRow = parseInt(payload.rowIndex);
+
+      const rowData = pending.getRange(pRow,1,1,pending.getLastColumn()).getValues()[0];
+      const dataObj = {};
       pendHdrs.forEach((h,i) => { dataObj[h] = rowData[i]; });
 
       // Get Sheet1 headers, add missing ones
@@ -110,14 +132,53 @@ function doPost(e) {
     if (payload.action === "reject") {
       const pending = ss.getSheetByName("Pending");
       if (!pending) throw new Error("Pending sheet not found.");
-      const pRow    = parseInt(payload.rowIndex);
       const hdrs    = pending.getRange(1,1,1,pending.getLastColumn()).getValues()[0].map(h => String(h).trim());
-      const rowData = pending.getRange(pRow,1,1,pending.getLastColumn()).getValues()[0];
       const eIdx    = hdrs.indexOf("Email");
       const nIdx    = hdrs.indexOf("Name");
+      const email   = (payload.email || "").toLowerCase().trim();
+
+      // Find by email
+      const allRows = pending.getRange(2,1,Math.max(pending.getLastRow()-1,1),pending.getLastColumn()).getValues();
+      let pRow = -1;
+      allRows.forEach((r,i) => { if (eIdx > -1 && String(r[eIdx]).toLowerCase().trim() === email) pRow = i + 2; });
+      if (pRow === -1) pRow = parseInt(payload.rowIndex);
+
+      const rowData = pending.getRange(pRow,1,1,pending.getLastColumn()).getValues()[0];
       if (eIdx > -1 && rowData[eIdx]) notifyDoctor(rowData[eIdx], rowData[nIdx] || "", "rejected");
       pending.deleteRow(pRow);
       return respond({ status: "ok", message: "Application rejected." });
+    }
+
+    // ── WEBSITE USER REGISTRATION (non-doctor) ──
+    if (payload.action === "register_user") {
+      let usersSheet = ss.getSheetByName("Users");
+      if (!usersSheet) {
+        usersSheet = ss.insertSheet("Users");
+        usersSheet.appendRow(["Name","Email","Mobile","Joined At","Is Doctor"]);
+        usersSheet.getRange(1,1,1,5).setFontWeight("bold").setBackground("#2D7A3A").setFontColor("#FFFFFF");
+        usersSheet.setFrozenRows(1);
+      }
+      // Check if user already exists
+      const lastRow = usersSheet.getLastRow();
+      if (lastRow > 1) {
+        const emails = usersSheet.getRange(2,2,lastRow-1,1).getValues().map(r => String(r[0]).toLowerCase().trim());
+        if (emails.includes((payload.email||"").toLowerCase().trim())) {
+          return respond({ status: "ok", message: "User already exists." });
+        }
+      }
+      // Check if they are also a doctor in Sheet1
+      const mainSheet = ss.getSheetByName("Sheet1");
+      let isDoctor = "No";
+      if (mainSheet && mainSheet.getLastRow() > 1) {
+        const mainHdrs = mainSheet.getRange(1,1,1,mainSheet.getLastColumn()).getValues()[0].map(h=>String(h).trim());
+        const eIdx = mainHdrs.indexOf("Email");
+        if (eIdx > -1) {
+          const emails = mainSheet.getRange(2,eIdx+1,mainSheet.getLastRow()-1,1).getValues().map(r=>String(r[0]).toLowerCase().trim());
+          if (emails.includes((payload.email||"").toLowerCase().trim())) isDoctor = "Yes";
+        }
+      }
+      usersSheet.appendRow([payload.name||"", payload.email||"", payload.mobile||"", payload.joinedAt||new Date().toLocaleString("en-IN"), isDoctor]);
+      return respond({ status: "ok", message: "User registered." });
     }
 
     // ── PROFILE UPDATE REQUEST (from doctor via My Profile) ──

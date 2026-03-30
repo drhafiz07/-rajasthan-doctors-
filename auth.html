@@ -30,8 +30,8 @@
       font-family: 'DM Sans', sans-serif;
       min-height: 100vh;
       background: linear-gradient(135deg, var(--maroon-dk) 0%, var(--maroon) 55%, #B5183A 100%);
-      display: flex; align-items: center; justify-content: center;
-      padding: 20px; position: relative; overflow: hidden;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 40px 20px; position: relative; overflow-y: auto;
     }
     .bg-dots {
       position: fixed; inset: 0; pointer-events: none; z-index: 0;
@@ -194,7 +194,7 @@
       <div class="logo-icon">✚</div>
       <div>
         <div class="logo-title">Rajasthan Doctors</div>
-        <div class="logo-sub">Official Medical Directory</div>
+        <div class="logo-sub">Medical Directory</div>
       </div>
     </div>
     <div class="tabs">
@@ -229,6 +229,9 @@
         Sign In →
       </button>
 
+      <div class="switch-link" style="margin-top:10px">
+        <a onclick="switchTab('forgot')" style="color:var(--ink-3);font-size:12px">Forgot password?</a>
+      </div>
       <div class="switch-link">
         Don't have an account? <a onclick="switchTab('register')">Register here</a>
       </div>
@@ -317,7 +320,37 @@
         <button class="btn-primary" onclick="goToDirectory()">Open Directory →</button>
       </div>
 
+    </div><!-- end panel-register -->
+
+    <!-- FORGOT PASSWORD PANEL -->
+    <div class="panel" id="panel-forgot">
+      <div class="panel-title">Reset Password</div>
+      <div class="panel-sub">Enter your registered email. We'll show your reset options.</div>
+      <div class="alert" id="forgot-alert"></div>
+      <div class="field">
+        <label>Email Address <span>*</span></label>
+        <input type="email" id="forgot-email" placeholder="you@example.com"/>
+      </div>
+      <button class="btn-primary" id="btn-forgot" onclick="doForgotPassword()">Find My Account →</button>
+      <div class="switch-link" style="margin-top:14px">
+        <a onclick="switchTab('login')" style="color:var(--ink-3);font-size:13px">← Back to Sign In</a>
+      </div>
+      <!-- Reset form — shown after account found -->
+      <div id="reset-form" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
+        <div style="font-size:13px;color:var(--ink-3);margin-bottom:14px">Account found. Set your new password:</div>
+        <div class="field">
+          <label>New Password <span>*</span></label>
+          <input type="password" id="reset-pwd1" placeholder="Min. 6 characters"/>
+        </div>
+        <div class="field">
+          <label>Confirm New Password <span>*</span></label>
+          <input type="password" id="reset-pwd2" placeholder="Repeat new password"/>
+        </div>
+        <button class="btn-primary" onclick="doResetPassword()">Update Password →</button>
+      </div>
     </div>
+
+  </div>
   </div>
 </div>
 
@@ -369,11 +402,64 @@ document.addEventListener("DOMContentLoaded", () => {
 //  TAB SWITCH
 // ============================================================
 function switchTab(tab) {
-  document.getElementById("panel-login").classList.toggle("active", tab === "login");
-  document.getElementById("panel-register").classList.toggle("active", tab === "register");
-  document.getElementById("tab-login").classList.toggle("active", tab === "login");
-  document.getElementById("tab-register").classList.toggle("active", tab === "register");
+  ["login","register","forgot"].forEach(t => {
+    const p = document.getElementById("panel-"+t);
+    if (p) p.classList.toggle("active", t === tab);
+  });
+  ["login","register"].forEach(t => {
+    const bt = document.getElementById("tab-"+t);
+    if (bt) bt.classList.toggle("active", t === tab);
+  });
   clearAlerts();
+}
+
+// ============================================================
+//  FORGOT PASSWORD
+// ============================================================
+function doForgotPassword() {
+  const email = document.getElementById("forgot-email").value.trim().toLowerCase();
+  const alertEl = document.getElementById("forgot-alert");
+  alertEl.style.display = "none";
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    alertEl.textContent = "Please enter a valid email address.";
+    alertEl.className = "alert error"; alertEl.style.display = "block"; return;
+  }
+
+  const users = getUsers();
+  if (!users[email]) {
+    alertEl.textContent = "No account found with this email address.";
+    alertEl.className = "alert error"; alertEl.style.display = "block"; return;
+  }
+
+  alertEl.textContent = "Account found! Please set your new password below.";
+  alertEl.className = "alert success"; alertEl.style.display = "block";
+  document.getElementById("reset-form").style.display = "block";
+  document.getElementById("btn-forgot").style.display = "none";
+}
+
+function doResetPassword() {
+  const email = document.getElementById("forgot-email").value.trim().toLowerCase();
+  const pwd1  = document.getElementById("reset-pwd1").value;
+  const pwd2  = document.getElementById("reset-pwd2").value;
+  const alertEl = document.getElementById("forgot-alert");
+
+  if (!pwd1 || pwd1.length < 6) {
+    alertEl.textContent = "Password must be at least 6 characters.";
+    alertEl.className = "alert error"; alertEl.style.display = "block"; return;
+  }
+  if (pwd1 !== pwd2) {
+    alertEl.textContent = "Passwords do not match.";
+    alertEl.className = "alert error"; alertEl.style.display = "block"; return;
+  }
+
+  const users = getUsers();
+  users[email].password = hashPwd(pwd1);
+  saveUsers(users);
+
+  alertEl.textContent = "✓ Password updated successfully! Redirecting to login…";
+  alertEl.className = "alert success"; alertEl.style.display = "block";
+  setTimeout(() => switchTab('login'), 2000);
 }
 
 // ============================================================
@@ -511,6 +597,20 @@ function verifyOTP() {
       joinedAt: new Date().toISOString()
     };
     saveUsers(users);
+
+    // Sync to Google Sheet for admin visibility (fire and forget)
+    const APPS_URL = "https://script.google.com/macros/s/AKfycbwaEb_hrjLu3rGt4Rujjkn0Dd3aXiSB00Su05tPImVDl32jY2lZtw_-hhoehP4n_QXZ/exec";
+    fetch(APPS_URL, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        action:   "register_user",
+        name:     pendingUser.name,
+        email:    pendingUser.email,
+        mobile:   pendingUser.mobile,
+        joinedAt: new Date().toLocaleString("en-IN")
+      })
+    }).catch(e => console.log("Sheet sync skipped:", e.message));
 
     // Auto-login
     sessionStorage.setItem("rdd_user", JSON.stringify({
