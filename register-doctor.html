@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Doctor Registration — Rajasthan Doctor Directory</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--maroon:#8B0C28;--maroon-dk:#5E0819;--maroon-lt:#F9EEF1;--gold:#C8922A;--sand:#F5F0E8;--white:#fff;--ink:#1A1410;--ink-2:#4A3F36;--ink-3:#7A6E65;--border:#E0D5C8;--green:#2D7A3A;--green-lt:#EAF3DE;--red:#A32D2D;--red-lt:#FCEBEB;--blue-lt:#E6F1FB;--blue:#185FA5;--radius:10px;--radius-lg:18px}
+    body{font-family:'DM Sans',sans-serif;background:var(--sand);color:var(--ink);min-height:100vh}
+    header{background:var(--maroon-dk);border-bottom:2px solid var(--gold);padding:14px 24px;display:flex;align-items:center;gap:12px}
+    .logo-icon{width:36px;height:36px;background:var(--gold);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--maroon-dk);font-weight:700;flex-shrink:0}
+    .logo-title{font-family:'Playfair Display',serif;font-size:16px;color:#fff}
+    .logo-sub{font-size:10px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.5px}
+    .hero-strip{background:linear-gradient(135deg,var(--maroon-dk),var(--maroon));padding:32px 24px;text-align:center}
+    .hero-strip h1{font-family:'Playfair Display',serif;font-size:clamp(22px,5vw,32px);color:#fff;margin-bottom:8px}
+    .hero-strip p{font-size:14px;color:rgba(255,255,255,.75);max-width:500px;margin:0 auto;line-height:1.6}
+    .progress-wrap{max-width:720px;margin:24px auto 0;padding:0 20px}
+    .progress-steps{display:flex;align-items:center}
+    .ps-item{display:flex;flex-direction:column;align-items:center;flex:1}
+    .ps-dot{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--ink-3);transition:all .3s}
+    .ps-dot.active{border-color:var(--maroon);background:var(--maroon);color:#fff}
+    .ps-dot.done{border-color:var(--green);background:var(--green);color:#fff}
+    .ps-label{font-size:10px;color:var(--ink-3);margin-top:5px;text-align:center}
+    .ps-label.active{color:var(--maroon);font-weight:600}
+    .ps-line{flex:1;height:2px;background:var(--border);margin-bottom:18px;transition:background .3s}
+    .ps-line.done{background:var(--green)}
+    .form-wrap{max-width:720px;margin:20px auto 60px;padding:0 20px}
+    .form-card{background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden;box-shadow:0 4px 20px rgba(26,20,16,.08)}
+    .form-section{padding:24px 28px;border-bottom:1px solid var(--border)}
+    .form-section:last-child{border-bottom:none}
+    .section-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--maroon);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    .section-title::after{content:'';flex:1;height:1px;background:var(--maroon-lt)}
+    .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field.full{grid-column:1/-1}
+    .field label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-3)}
+    .field label .req{color:var(--red)}
+    .field input,.field select,.field textarea{padding:11px 13px;border:1px solid var(--border);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);outline:none;transition:border-color .15s,box-shadow .15s;background:var(--white);width:100%}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--maroon);box-shadow:0 0 0 3px rgba(139,12,40,.08)}
+    .field input.err,.field select.err{border-color:var(--red)}
+    .field input.ok{border-color:var(--green)}
+    .field textarea{resize:vertical;min-height:90px}
+    .field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A6E65' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+    .field-hint{font-size:11px;color:var(--ink-3);margin-top:3px}
+    .field-err-msg{font-size:11px;color:var(--red);margin-top:3px;display:none}
+    .mobile-wrap{position:relative}
+    .mobile-prefix{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--ink-3);font-weight:600;pointer-events:none}
+    .mobile-wrap input{padding-left:40px}
+    .mobile-ok{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--green);font-size:16px;display:none}
+    .mobile-err-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--red);font-size:16px;display:none}
+    .otp-row{display:flex;gap:8px}
+    .otp-row input{flex:1;text-align:center;font-size:20px;font-weight:700;letter-spacing:8px}
+    .btn-otp{padding:0 14px;background:var(--maroon-lt);color:var(--maroon);border:1px solid #F0C0CC;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s;height:44px}
+    .btn-otp:hover{background:var(--maroon);color:#fff}
+    .btn-otp:disabled{opacity:.5;cursor:not-allowed}
+    .otp-timer{font-size:11px;color:var(--ink-3);margin-top:4px;min-height:16px}
+    .privacy-toggle{display:flex;align-items:center;gap:10px;padding:10px 13px;border:1px solid var(--border);border-radius:var(--radius);background:var(--sand);cursor:pointer}
+    .privacy-toggle input[type=checkbox]{width:16px;height:16px;accent-color:var(--maroon);cursor:pointer;flex-shrink:0}
+    .privacy-toggle span{font-size:13px;color:var(--ink-2);line-height:1.4}
+    .cv-entry{background:var(--sand);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px}
+    .cv-entry-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .cv-entry-label{font-size:12px;font-weight:600;color:var(--maroon);text-transform:uppercase;letter-spacing:.4px}
+    .btn-remove-entry{background:var(--red-lt);color:var(--red);border:1px solid #F7C1C1;border-radius:6px;font-size:12px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+    .btn-remove-entry:hover{background:var(--red);color:#fff}
+    .btn-add-entry{display:flex;align-items:center;gap:6px;padding:9px 16px;background:none;border:1.5px dashed var(--maroon);border-radius:var(--radius);color:var(--maroon);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;width:100%;justify-content:center;margin-top:4px}
+    .btn-add-entry:hover{background:var(--maroon-lt)}
+    .cv-group{margin-bottom:22px}
+    .cv-group-title{font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+    .cv-group-hint{font-size:11px;color:var(--ink-3);font-weight:400}
+    .consent-box{background:#FDF5E6;border:1px solid #EF9F27;border-radius:var(--radius);padding:16px 18px}
+    .consent-point{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:rgba(255,255,255,.6);border-radius:8px;border:1px solid #EFD09A;margin-bottom:8px}
+    .consent-point-icon{font-size:16px;flex-shrink:0}
+    .consent-point-title{font-size:13px;font-weight:600;color:#412402;margin-bottom:2px}
+    .consent-point-text{font-size:12px;color:#633806;line-height:1.6}
+    .consent-check-wrap{background:#fff;border:1.5px solid #C8922A;border-radius:8px;padding:12px 14px;margin-top:12px}
+    .consent-check{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
+    .consent-check input[type=checkbox]{width:18px;height:18px;margin-top:2px;accent-color:var(--maroon);flex-shrink:0;cursor:pointer}
+    .consent-check span{font-size:13px;color:var(--ink);line-height:1.6;font-weight:500}
+    .alert{border-radius:var(--radius);padding:12px 14px;font-size:13px;margin-bottom:16px;display:none;line-height:1.5}
+    .alert.success{background:var(--green-lt);color:var(--green);border:1px solid #C0DD97}
+    .alert.error{background:var(--red-lt);color:var(--red);border:1px solid #F7C1C1}
+    .alert.info{background:var(--blue-lt);color:var(--blue);border:1px solid #B5D4F4}
+    .form-footer{padding:20px 28px;background:var(--sand)}
+    .btn-submit{width:100%;padding:15px;background:var(--maroon);color:#fff;border:none;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;cursor:pointer;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+    .btn-submit:hover{background:var(--maroon-dk)}
+    .btn-submit:disabled{opacity:.6;cursor:not-allowed}
+    .form-note{font-size:12px;color:var(--ink-3);text-align:center;margin-top:10px;line-height:1.6}
+    .success-screen{display:none;text-align:center;padding:48px 28px}
+    .success-screen h2{font-family:'Playfair Display',serif;font-size:26px;margin-bottom:10px;color:var(--green)}
+    .success-screen p{font-size:15px;color:var(--ink-3);line-height:1.7;max-width:380px;margin:0 auto 24px}
+    .btn-back{padding:12px 28px;background:var(--maroon);color:#fff;border:none;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer}
+    .spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:560px){.field-grid{grid-template-columns:1fr}.field.full{grid-column:1}.form-section{padding:18px 16px}.form-footer{padding:16px}.ps-label{font-size:9px}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo-icon">✚</div>
+  <div><div class="logo-title">Rajasthan Doctors</div><div class="logo-sub">Medical Directory</div></div>
+</header>
+<div class="hero-strip">
+  <h1>Doctor Registration</h1>
+  <p>Join the Rajasthan Doctor Directory. Your profile will be reviewed and published after admin approval.</p>
+</div>
+<div class="progress-wrap">
+  <div class="progress-steps">
+    <div class="ps-item"><div class="ps-dot active" id="pd1">1</div><div class="ps-label active" id="pl1">Personal</div></div>
+    <div class="ps-line" id="pline1"></div>
+    <div class="ps-item"><div class="ps-dot" id="pd2">2</div><div class="ps-label" id="pl2">Professional</div></div>
+    <div class="ps-line" id="pline2"></div>
+    <div class="ps-item"><div class="ps-dot" id="pd3">3</div><div class="ps-label" id="pl3">CV</div></div>
+    <div class="ps-line" id="pline3"></div>
+    <div class="ps-item"><div class="ps-dot" id="pd4">4</div><div class="ps-label" id="pl4">Hometown</div></div>
+    <div class="ps-line" id="pline4"></div>
+    <div class="ps-item"><div class="ps-dot" id="pd5">5</div><div class="ps-label" id="pl5">Bio</div></div>
+    <div class="ps-line" id="pline5"></div>
+    <div class="ps-item"><div class="ps-dot" id="pd6">6</div><div class="ps-label" id="pl6">Social</div></div>
+    <div class="ps-line" id="pline6"></div>
+    <div class="ps-item"><div class="ps-dot" id="pd7">7</div><div class="ps-label" id="pl7">Consent</div></div>
+  </div>
+</div>
+<div id="edit-back-bar" style="display:none;max-width:720px;margin:16px auto 0;padding:0 20px">
+  <a href="rajasthan-doctors-single.html"
+    style="display:inline-flex;align-items:center;gap:6px;color:var(--maroon);font-size:14px;font-weight:600;text-decoration:none;padding:8px 14px;background:var(--maroon-lt);border-radius:8px;border:1px solid #F0C0CC">
+    ← Back to My Profile
+  </a>
+</div>
+<div class="form-wrap">
+  <div class="form-card">
+    <div class="success-screen" id="success-screen">
+      <div style="font-size:64px;margin-bottom:16px">🎉</div>
+      <h2>Application Submitted!</h2>
+      <p>Thank you, <strong id="success-name"></strong>. Your registration is pending admin review. You will be notified once approved.</p>
+      <button class="btn-back" id="btn-success-back" onclick="window.location.href='auth.html'">Back to Login</button>
+    </div>
+    <div id="reg-form">
+      <div class="alert" id="form-alert" style="margin:16px 28px 0"></div>
+
+      <!-- SECTION 1: PERSONAL -->
+      <div class="form-section" id="sec1">
+        <div class="section-title">1 — Personal Information</div>
+        <div class="field-grid">
+          <div class="field full"><label>Full Name <span class="req">*</span></label><input type="text" id="f-name" placeholder="Dr. Ramesh Sharma"/></div>
+          <div class="field"><label>Gender <span class="req">*</span></label>
+            <select id="f-gender"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
+          </div>
+          <div class="field">
+            <label>Mobile Number <span class="req">*</span></label>
+            <div class="mobile-wrap">
+              <span class="mobile-prefix">+91</span>
+              <input type="tel" id="f-mobile" placeholder="98765 43210" maxlength="10" inputmode="numeric" oninput="validateMobile(this)" onkeypress="return /[0-9]/.test(event.key)"/>
+              <span class="mobile-ok" id="mobile-ok">✓</span>
+              <span class="mobile-err-icon" id="mobile-err-icon">✗</span>
+            </div>
+            <div class="field-hint">10-digit number without +91 (start with 6,7,8 or 9)</div>
+            <div class="field-err-msg" id="mobile-err-msg">Please enter a valid 10-digit Indian mobile number</div>
+          </div>
+          <div class="field full">
+            <label>Mobile Number Privacy</label>
+            <label class="privacy-toggle">
+              <input type="checkbox" id="f-mobile-public" checked/>
+              <span><strong>Show my mobile number publicly</strong> — uncheck to hide from public (admin can always see it)</span>
+            </label>
+          </div>
+          <div class="field full">
+            <label>Email Address <span class="req">*</span></label>
+            <div class="otp-row">
+              <input type="email" id="f-email" placeholder="doctor@example.com"/>
+              <button class="btn-otp" id="btn-send-otp" onclick="sendOTP()">Send OTP</button>
+            </div>
+            <div class="otp-timer" id="otp-timer"></div>
+          </div>
+          <div class="field full" id="otp-field" style="display:none">
+            <label>Enter OTP <span class="req">*</span></label>
+            <input type="text" id="f-otp" placeholder="------" maxlength="6" style="text-align:center;font-size:22px;font-weight:700;letter-spacing:10px" inputmode="numeric" onkeypress="return /[0-9]/.test(event.key)"/>
+            <div class="field-hint" id="otp-hint"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2: PROFESSIONAL -->
+      <div class="form-section" id="sec2">
+        <div class="section-title">2 — Professional Details</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Specialization <span class="req">*</span></label>
+            <select id="f-spec" onchange="toggleOtherSpec(this)">
+              <option value="">Select specialization</option>
+              <optgroup label="Medicine">
+                <option>General Medicine</option><option>Cardiology</option><option>Neurology</option>
+                <option>Gastroenterology</option><option>Nephrology</option><option>Pulmonology</option>
+                <option>Endocrinology</option><option>Rheumatology</option><option>Haematology</option>
+                <option>Infectious Disease</option><option>Geriatrics</option><option>Allergy & Immunology</option>
+              </optgroup>
+              <optgroup label="Surgery">
+                <option>Surgery (General)</option><option>Cardiothoracic Surgery</option>
+                <option>Neurosurgery</option><option>Orthopaedics</option><option>Urology</option>
+                <option>Vascular Surgery</option><option>Plastic Surgery</option>
+                <option>Paediatric Surgery</option><option>Colorectal Surgery</option>
+                <option>Transplant Surgery</option>
+              </optgroup>
+              <optgroup label="Women & Children">
+                <option>Gynaecology</option><option>Obstetrics</option>
+                <option>Paediatrics</option><option>Neonatology</option>
+                <option>Paediatric Cardiology</option><option>Reproductive Medicine</option>
+              </optgroup>
+              <optgroup label="Mental Health">
+                <option>Psychiatry</option><option>Psychology</option>
+                <option>Neuropsychiatry</option><option>Addiction Medicine</option>
+              </optgroup>
+              <optgroup label="Diagnostics">
+                <option>Radiology</option><option>Pathology</option>
+                <option>Nuclear Medicine</option><option>Microbiology</option>
+              </optgroup>
+              <optgroup label="Specialties">
+                <option>Ophthalmology</option><option>ENT</option><option>Dermatology</option>
+                <option>Oncology</option><option>Radiation Oncology</option>
+                <option>Anaesthesiology</option><option>Emergency Medicine</option>
+                <option>Sports Medicine</option><option>Occupational Medicine</option>
+                <option>Palliative Care</option><option>Pain Management</option>
+              </optgroup>
+              <optgroup label="Allied Health">
+                <option>Dentistry</option><option>Orthodontics</option>
+                <option>Physiotherapy</option><option>Occupational Therapy</option>
+                <option>Speech Therapy</option><option>Dietetics & Nutrition</option>
+                <option>Ayurveda</option><option>Homoeopathy</option><option>Unani</option>
+              </optgroup>
+              <option value="Other">Other (specify below)</option>
+            </select>
+          </div>
+          <div class="field full" id="spec-other-field" style="display:none">
+            <label>Specify Your Specialization <span class="req">*</span></label>
+            <input type="text" id="f-spec-other" placeholder="e.g. Interventional Radiology, Paediatric Neurology, etc."/>
+            <div style="font-size:11px;color:var(--ink-3);margin-top:3px">Please be specific — this will appear on your public profile</div>
+          </div>
+          <div class="field"><label>Registration Number</label><input type="text" id="f-reg" placeholder="RMC-12345"/></div>
+          <div class="field full"><label>Current Hospital / Clinic <span class="req">*</span></label><input type="text" id="f-hospital" placeholder="SMS Hospital, Jaipur"/></div>
+          <div class="field"><label>Current Position / Designation</label><input type="text" id="f-position" placeholder="Senior Consultant / HOD"/></div>
+          <div class="field"><label>Consultation Fees (₹)</label><input type="text" id="f-fees" placeholder="500"/></div>
+          <div class="field"><label>Timing / Availability</label><input type="text" id="f-timing" placeholder="Mon-Sat, 10am–2pm"/></div>
+          <div class="field"><label>Languages Spoken</label><input type="text" id="f-lang" placeholder="Hindi, English, Marwari"/></div>
+          <div class="field full"><label>Clinic / Hospital Address</label><input type="text" id="f-address" placeholder="Full address of your clinic or hospital"/></div>
+        </div>
+      </div>
+
+      <!-- SECTION 3: CV -->
+      <div class="form-section" id="sec3">
+        <div class="section-title">3 — CV / Experience</div>
+        <div class="cv-group">
+          <div class="cv-group-title">🏥 Work Experience <span class="cv-group-hint">(add as many as needed)</span></div>
+          <div id="work-entries"></div>
+          <button type="button" class="btn-add-entry" onclick="addEntry('work')">+ Add Work Experience</button>
+        </div>
+        <div class="cv-group">
+          <div class="cv-group-title">🎓 Education / Degrees <span class="cv-group-hint">(add as many as needed)</span></div>
+          <div id="edu-entries"></div>
+          <button type="button" class="btn-add-entry" onclick="addEntry('edu')">+ Add Education</button>
+        </div>
+        <div class="cv-group">
+          <div class="cv-group-title">🏆 Awards & Achievements <span class="cv-group-hint">(optional)</span></div>
+          <div id="award-entries"></div>
+          <button type="button" class="btn-add-entry" onclick="addEntry('award')">+ Add Award</button>
+        </div>
+        <div class="cv-group" style="margin-bottom:0">
+          <div class="cv-group-title">📄 Publications / Research <span class="cv-group-hint">(optional)</span></div>
+          <div id="pub-entries"></div>
+          <button type="button" class="btn-add-entry" onclick="addEntry('pub')">+ Add Publication</button>
+        </div>
+      </div>
+
+      <!-- SECTION 4: HOMETOWN -->
+      <div class="form-section" id="sec4">
+        <div class="section-title">4 — Hometown / Location (Rajasthan)</div>
+        <div style="background:var(--blue-lt);border:1px solid #B5D4F4;border-radius:var(--radius);padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--blue);line-height:1.6">
+          📍 This directory is specifically for doctors from or practicing in <strong>Rajasthan</strong>.
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label>District <span class="req">*</span></label>
+            <select id="f-district">
+              <option value="">Select District</option>
+              <option>Ajmer</option><option>Alwar</option><option>Banswara</option><option>Baran</option>
+              <option>Barmer</option><option>Bharatpur</option><option>Bhilwara</option><option>Bikaner</option>
+              <option>Bundi</option><option>Chittorgarh</option><option>Churu</option><option>Dausa</option>
+              <option>Dholpur</option><option>Dungarpur</option><option>Hanumangarh</option><option>Jaipur</option>
+              <option>Jaisalmer</option><option>Jalore</option><option>Jhalawar</option><option>Jhunjhunu</option>
+              <option>Jodhpur</option><option>Karauli</option><option>Kota</option><option>Nagaur</option>
+              <option>Pali</option><option>Pratapgarh</option><option>Rajsamand</option>
+              <option>Sawai Madhopur</option><option>Sikar</option><option>Sirohi</option>
+              <option>Sri Ganganagar</option><option>Tonk</option><option>Udaipur</option>
+            </select>
+          </div>
+          <div class="field"><label>City / Town <span class="req">*</span></label><input type="text" id="f-city" placeholder="e.g. Jaipur, Jodhpur, Kota"/></div>
+          <div class="field"><label>Tehsil</label><input type="text" id="f-tehsil" placeholder="e.g. Sanganer, Phulera"/></div>
+          <div class="field">
+            <label>PIN Code</label>
+            <input type="text" id="f-pin" placeholder="302001" maxlength="6" inputmode="numeric" onkeypress="return /[0-9]/.test(event.key)" oninput="validatePIN(this)"/>
+            <div class="field-err-msg" id="pin-err-msg">PIN code must be exactly 6 digits</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 5: BIO -->
+      <div class="form-section" id="sec5">
+        <div class="section-title">5 — About Me / Short Bio</div>
+        <div class="field-grid">
+          <div class="field full">
+            <label>Short Bio / About Me</label>
+            <textarea id="f-bio" placeholder="Write a short introduction about yourself — your expertise, approach to patient care, areas of interest, or anything you'd like patients to know about you. (Recommended: 50–200 words)" style="min-height:130px"></textarea>
+            <div class="field-hint">This will appear on your public profile. Keep it professional and patient-friendly.</div>
+          </div>
+          <div class="field full">
+            <label>Profile Photo URL</label>
+            <input type="url" id="f-photo" placeholder="https://example.com/your-photo.jpg"/>
+            <div class="field-hint">Paste a direct link to your professional photo (optional). Must be a public URL.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 6: SOCIAL MEDIA -->
+      <div class="form-section" id="sec6">
+        <div class="section-title">6 — Social Media & Online Presence</div>
+        <div style="background:var(--blue-lt);border:1px solid #B5D4F4;border-radius:var(--radius);padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--blue);line-height:1.6">
+          🔗 All fields are optional. These links will be visible on your public profile.
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label>LinkedIn Profile</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-3);pointer-events:none">in</span>
+              <input type="url" id="f-linkedin" placeholder="https://linkedin.com/in/yourname" style="padding-left:32px"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>Twitter / X Profile</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-3);pointer-events:none">𝕏</span>
+              <input type="url" id="f-twitter" placeholder="https://twitter.com/yourhandle" style="padding-left:32px"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>Facebook Page / Profile</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-3);pointer-events:none">f</span>
+              <input type="url" id="f-facebook" placeholder="https://facebook.com/yourpage" style="padding-left:32px"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>Instagram</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-3);pointer-events:none">📷</span>
+              <input type="url" id="f-instagram" placeholder="https://instagram.com/yourhandle" style="padding-left:32px"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>YouTube Channel</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-3);pointer-events:none">▶</span>
+              <input type="url" id="f-youtube" placeholder="https://youtube.com/@yourchannel" style="padding-left:32px"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>Personal / Hospital Website</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-3);pointer-events:none">🌐</span>
+              <input type="url" id="f-website" placeholder="https://yourwebsite.com" style="padding-left:32px"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>Practo Profile</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-3);pointer-events:none">P</span>
+              <input type="url" id="f-practo" placeholder="https://practo.com/doctor/yourname" style="padding-left:32px"/>
+            </div>
+          </div>
+          <div class="field">
+            <label>Google Scholar / ResearchGate</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-3);pointer-events:none">📚</span>
+              <input type="url" id="f-scholar" placeholder="https://scholar.google.com/..." style="padding-left:32px"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 7: CONSENT -->
+      <div class="form-section" id="sec7">
+        <div class="section-title">7 — Consent & Declaration</div>
+        <div class="consent-box">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:18px">⚠️</span><strong style="font-size:14px;color:#412402">Please read carefully before submitting</strong></div>
+          <p style="font-size:13px;color:#4A3F36;margin-bottom:14px;line-height:1.7">This is a <strong>public website</strong> accessible to everyone on the internet. By submitting you confirm you fully understand and agree to all of the following:</p>
+          <div class="consent-point"><span class="consent-point-icon">🌐</span><div><div class="consent-point-title">Publicly visible on the internet</div><div class="consent-point-text">Your full profile will be visible to <strong>anyone on the internet</strong> without requiring a login.</div></div></div>
+          <div class="consent-point"><span class="consent-point-icon">📞</span><div><div class="consent-point-title">Contact number may be publicly visible</div><div class="consent-point-text">If you choose to show your mobile number, it will be <strong>displayed publicly</strong> and may be seen by patients and the general public.</div></div></div>
+          <div class="consent-point"><span class="consent-point-icon">🔍</span><div><div class="consent-point-title">May appear in Google and other search engines</div><div class="consent-point-text">Your profile may be <strong>indexed by search engines</strong> like Google and appear in search results.</div></div></div>
+          <div class="consent-point"><span class="consent-point-icon">🛡️</span><div><div class="consent-point-title">Admin rights over your listing</div><div class="consent-point-text">The directory admin reserves the right to <strong>edit, update, or remove</strong> your profile at any time.</div></div></div>
+          <div class="consent-point" style="margin-bottom:0"><span class="consent-point-icon">✋</span><div><div class="consent-point-title">You can request removal at any time</div><div class="consent-point-text">You have the right to <strong>request removal or correction</strong> of your listing by contacting the admin.</div></div></div>
+          <div class="consent-check-wrap">
+            <label class="consent-check">
+              <input type="checkbox" id="f-consent"/>
+              <span>I have read and fully understood all the above points. I <strong>voluntarily consent</strong> to listing my professional details on the Rajasthan Doctor Directory, a publicly accessible website. I confirm that all information is accurate and belongs to me.</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-footer">
+        <button class="btn-submit" id="btn-submit" onclick="submitForm()">Submit Registration →</button>
+        <div class="form-note">Your application will be reviewed by the admin before going live.<br/>Already registered? <a href="auth.html" style="color:var(--maroon);font-weight:600">Sign in here</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+const APPS_SCRIPT_URL="https://script.google.com/macros/s/AKfycbwaEb_hrjLu3rGt4Rujjkn0Dd3aXiSB00Su05tPImVDl32jY2lZtw_-hhoehP4n_QXZ/exec";
+const EMAILJS_PUBLIC_KEY="",EMAILJS_SERVICE_ID="",EMAILJS_TEMPLATE_ID="";
+let currentOTP="",otpExpiry=0,otpTimerHnd=null;
+let counts={work:0,edu:0,award:0,pub:0};
+
+// ============================================================
+//  EDIT MODE — detect if opened from My Profile
+// ============================================================
+let isEditMode = false;
+let editDocData = null;
+
+document.addEventListener("DOMContentLoaded",()=>{
+  if(EMAILJS_PUBLIC_KEY)emailjs.init({publicKey:EMAILJS_PUBLIC_KEY});
+  updateProgress(1);
+
+  // Always add default CV entry rows first
+  addEntry('work'); addEntry('edu');
+
+  // Check if opened in edit mode via sessionStorage
+  try {
+    const editFlag = sessionStorage.getItem("rdd_edit_mode");
+    const editData = sessionStorage.getItem("rdd_edit_doc");
+    if (editFlag === "true" && editData) {
+      editDocData = JSON.parse(editData);
+      isEditMode  = true;
+      // Clear flags so refresh doesn't re-enter edit mode
+      sessionStorage.removeItem("rdd_edit_mode");
+      sessionStorage.removeItem("rdd_edit_doc");
+      enterEditMode(editDocData);
+      // Pre-fill CV entries after a short delay to ensure DOM is ready
+      setTimeout(() => prefillCVEntries(editDocData), 200);
+    }
+  } catch(e) {
+    console.error('Edit mode load error:', e);
+  }
+
+  const obs=new IntersectionObserver(es=>{
+    es.forEach(e=>{if(e.isIntersecting){const m={"sec1":1,"sec2":2,"sec3":3,"sec4":4,"sec5":5,"sec6":6,"sec7":7};if(m[e.target.id])updateProgress(m[e.target.id]);}});
+  },{threshold:0.3});
+  ["sec1","sec2","sec3","sec4","sec5","sec6","sec7"].forEach(id=>{const el=document.getElementById(id);if(el)obs.observe(el);});
+});
+
+// ============================================================
+//  ENTER EDIT MODE — change UI and pre-fill all fields
+// ============================================================
+function enterEditMode(doc) {
+  // Debug: log what we received
+  console.log("enterEditMode called with keys:", Object.keys(doc));
+  console.log("enterEditMode doc sample:", JSON.stringify(doc).substring(0, 500));
+
+  // Case-insensitive doc key lookup
+  const get = (...keys) => {
+    for (const k of keys) {
+      const match = Object.keys(doc).find(dk => dk.trim().toLowerCase() === k.toLowerCase());
+      if (match && doc[match] && String(doc[match]).trim()) return String(doc[match]).trim();
+    }
+    return "";
+  };
+
+  document.title = "Edit Profile — Rajasthan Doctor Directory";
+  const h1 = document.querySelector(".hero-strip h1");
+  if (h1) h1.textContent = "Edit Your Profile";
+  const hp = document.querySelector(".hero-strip p");
+  if (hp) hp.textContent = "Update your details below. Changes will be sent to the admin for approval before going live.";
+
+  const btn = document.getElementById("btn-submit");
+  if (btn) btn.textContent = "Submit Changes for Approval →";
+
+  const successP = document.querySelector("#success-screen p");
+  if (successP) successP.innerHTML = "Thank you, <strong id=\"success-name\"></strong>. Your profile update has been submitted and is pending admin review.";
+
+  // Hide OTP section
+  const otpSection = document.getElementById("otp-field");
+  if (otpSection) otpSection.style.display = "none";
+  const sendOTPBtn = document.getElementById("btn-send-otp");
+  if (sendOTPBtn) sendOTPBtn.style.display = "none";
+  const emailInput = document.getElementById("f-email");
+  if (emailInput) emailInput.disabled = true;
+
+  // Show edit notice
+  const formAlert = document.getElementById("form-alert");
+  if (formAlert) {
+    formAlert.textContent = "✏️ You are editing your profile. All changes require admin approval before going live.";
+    formAlert.className = "alert info";
+    formAlert.style.display = "block";
+  }
+
+  // Pre-fill all fields using case-insensitive lookup
+  const fieldMap = {
+    "f-name":     get("name"),
+    "f-gender":   get("gender"),
+    "f-mobile":   (get("contact (admin)") || get("contact") || "").replace(/^\+91/, "").trim(),
+    "f-email":    get("email"),
+    "f-spec":     get("specialization","specialisation","specialty"),
+    "f-reg":      get("registration no","reg no","registration number"),
+    "f-hospital": get("hospital","clinic"),
+    "f-position": get("position","designation"),
+    "f-fees":     get("fees","consultation fees"),
+    "f-timing":   get("timing","availability"),
+    "f-lang":     get("languages","language"),
+    "f-address":  get("address"),
+    "f-district": get("district"),
+    "f-city":     get("city","town"),
+    "f-tehsil":   get("tehsil"),
+    "f-pin":      get("pin code","pincode","pin"),
+    "f-bio":      get("bio","about","about me"),
+    "f-photo":    get("photo url","photo","image"),
+    "f-linkedin": get("linkedin"),
+    "f-twitter":  get("twitter/x","twitter"),
+    "f-facebook": get("facebook"),
+    "f-instagram":get("instagram"),
+    "f-youtube":  get("youtube"),
+    "f-website":  get("website"),
+    "f-practo":   get("practo"),
+    "f-scholar":  get("google scholar","scholar"),
+  };
+
+  Object.entries(fieldMap).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (!el || !val) return;
+    if (el.tagName === "SELECT") {
+      Array.from(el.options).forEach(opt => {
+        if (opt.value === val || opt.text === val) opt.selected = true;
+      });
+    } else {
+      el.value = val;
+    }
+  });
+
+  // Handle "Other" specialization
+  const spec = get("specialization","specialisation","specialty");
+  const specSelect = document.getElementById("f-spec");
+  if (specSelect && spec) {
+    const hasOption = Array.from(specSelect.options).some(o => o.value === spec || o.text === spec);
+    if (!hasOption) {
+      specSelect.value = "Other";
+      const otherField = document.getElementById("spec-other-field");
+      if (otherField) otherField.style.display = "flex";
+      const otherInput = document.getElementById("f-spec-other");
+      if (otherInput) otherInput.value = spec;
+    }
+  }
+
+  // Validate mobile display
+  const mobileInput = document.getElementById("f-mobile");
+  if (mobileInput && mobileInput.value) validateMobile(mobileInput);
+
+  // Set mobile public toggle
+  const mobilePublicVal = get("mobile public");
+  const toggle = document.getElementById("f-mobile-public");
+  if (toggle) toggle.checked = mobilePublicVal !== "No";
+
+  // Mark OTP as already verified (skip requirement)
+  currentOTP  = 'EDIT_MODE_BYPASS';
+  otpExpiry   = Date.now() + 999 * 60 * 1000; // far future
+
+  // Update success button to go back to directory
+  const successBtn = document.getElementById('btn-success-back');
+  if (successBtn) {
+    successBtn.textContent = 'Back to Directory';
+    successBtn.setAttribute('onclick', "window.location.href='rajasthan-doctors-single.html'");
+  }
+
+  // Show the back link bar
+  const backBar = document.getElementById('edit-back-bar');
+  if (backBar) backBar.style.display = 'block';
+}
+
+// ============================================================
+//  PRE-FILL CV ENTRIES from existing doc
+// ============================================================
+function prefillCVEntries(doc) {
+  const types = {
+    Work:  { fields: ['Hospital','Position','From','To'],        container: 'work-entries' },
+    Edu:   { fields: ['Degree','Subject','College','Year'],      container: 'edu-entries'  },
+    Award: { fields: ['Title','By','Year'],                      container: 'award-entries'},
+    Pub:   { fields: ['Title','Journal','Year'],                 container: 'pub-entries'  }
+  };
+
+  Object.entries(types).forEach(([prefix, meta]) => {
+    // Find all existing entries for this type
+    let num = 1;
+    while (true) {
+      const firstKey = prefix + num + '_' + meta.fields[0];
+      if (!doc[firstKey]) break;
+
+      // Add an entry row
+      const container = document.getElementById(meta.container);
+      if (!container) break;
+
+      // Get the entry element just added
+      const entryCount = container.querySelectorAll('.cv-entry').length;
+      if (entryCount < num) addEntry(prefix.toLowerCase() === 'work' ? 'work' : prefix.toLowerCase() === 'edu' ? 'edu' : prefix.toLowerCase() === 'award' ? 'award' : 'pub');
+
+      // Wait a tick then fill values
+      setTimeout((() => {
+        const n = num;
+        const p = prefix;
+        const f = meta.fields;
+        return () => {
+          const entries = document.getElementById(meta.container).querySelectorAll('.cv-entry');
+          const entry   = entries[n - 1];
+          if (!entry) return;
+          f.forEach(field => {
+            const col = p + n + '_' + field;
+            const val = doc[col];
+            if (!val) return;
+            const inputs = entry.querySelectorAll('input[type="text"], input:not([type])');
+            inputs.forEach(inp => {
+              if (inp.placeholder === field) inp.value = val;
+            });
+          });
+        };
+      })(), 100 * num);
+
+      num++;
+    }
+  });
+}
+
+function updateProgress(active){
+  for(let i=1;i<=7;i++){
+    const dot=document.getElementById("pd"+i),lbl=document.getElementById("pl"+i);
+    if(!dot)continue;
+    if(i<active){dot.className="ps-dot done";lbl.className="ps-label";dot.textContent="✓";}
+    else if(i===active){dot.className="ps-dot active";lbl.className="ps-label active";}
+    else{dot.className="ps-dot";lbl.className="ps-label";dot.textContent=i;}
+    if(i<7){const line=document.getElementById("pline"+i);if(line)line.className=i<active?"ps-line done":"ps-line";}
+  }
+}
+
+function toggleOtherSpec(sel){
+  const f=document.getElementById("spec-other-field");
+  f.style.display=sel.value==="Other"?"flex":"none";
+}
+
+function validateMobile(input){
+  const val=input.value.replace(/\D/g,"");input.value=val;
+  const ok=document.getElementById("mobile-ok"),err=document.getElementById("mobile-err-icon"),msg=document.getElementById("mobile-err-msg");
+  if(val.length===0){ok.style.display="none";err.style.display="none";input.classList.remove("ok","err");msg.style.display="none";}
+  else if(val.length===10&&/^[6-9]/.test(val)){ok.style.display="block";err.style.display="none";input.classList.add("ok");input.classList.remove("err");msg.style.display="none";}
+  else{err.style.display="block";ok.style.display="none";input.classList.add("err");input.classList.remove("ok");msg.style.display=val.length>=3?"block":"none";}
+}
+
+function validatePIN(input){
+  const val=input.value.replace(/\D/g,"");input.value=val;
+  const msg=document.getElementById("pin-err-msg");
+  if(val.length>0&&val.length!==6){msg.style.display="block";input.classList.add("err");}
+  else{msg.style.display="none";input.classList.remove("err");}
+}
+
+async function sendOTP(){
+  const email=document.getElementById("f-email").value.trim().toLowerCase();
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showAlert("Please enter a valid email address first.","error");return;}
+  const btn=document.getElementById("btn-send-otp");btn.disabled=true;btn.textContent="Sending…";
+  currentOTP=String(Math.floor(100000+Math.random()*900000));otpExpiry=Date.now()+10*60*1000;
+  let sent=false;
+  if(EMAILJS_PUBLIC_KEY&&EMAILJS_SERVICE_ID&&EMAILJS_TEMPLATE_ID){
+    try{await emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_ID,{to_name:document.getElementById("f-name").value||"Doctor",to_email:email,otp:currentOTP,expiry:"10 minutes"});sent=true;}catch(e){console.error(e);}
+  }
+  document.getElementById("otp-field").style.display="block";document.getElementById("f-email").disabled=true;btn.textContent="Resend";btn.disabled=false;
+  const hint=document.getElementById("otp-hint");
+  if(!sent){hint.textContent="EmailJS not configured — OTP for testing: "+currentOTP;hint.style.color="#185FA5";}
+  else{hint.textContent="OTP sent to "+email;hint.style.color="var(--green)";}
+  clearInterval(otpTimerHnd);
+  const tick=()=>{const rem=Math.max(0,Math.floor((otpExpiry-Date.now())/1000)),el=document.getElementById("otp-timer");if(rem>0){el.textContent="OTP expires in "+Math.floor(rem/60)+":"+String(rem%60).padStart(2,"0");el.style.color=rem<60?"var(--red)":"var(--ink-3)";}else{el.textContent="OTP expired. Click Resend.";el.style.color="var(--red)";clearInterval(otpTimerHnd);}};
+  tick();otpTimerHnd=setInterval(tick,1000);
+}
+
+// CV entry templates
+const templates={
+  work:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">🏥 Experience #${n}</span><button class="btn-remove-entry" type="button" onclick="removeEntry('${id}')">✕ Remove</button></div>
+    <div class="field-grid">
+      <div class="field full"><label>Hospital / Institute Name</label><input type="text" data-key="hospital" placeholder="e.g. AIIMS New Delhi"/></div>
+      <div class="field full"><label>Position / Designation</label><input type="text" data-key="position" placeholder="e.g. Senior Resident, Consultant, HOD"/></div>
+      <div class="field"><label>From Year</label><input type="text" data-key="from" placeholder="2015" maxlength="4" inputmode="numeric"/></div>
+      <div class="field"><label>To Year</label><input type="text" data-key="to" placeholder="2020 or Present" maxlength="7"/></div>
+    </div>`,
+  edu:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">🎓 Degree #${n}</span><button class="btn-remove-entry" type="button" onclick="removeEntry('${id}')">✕ Remove</button></div>
+    <div class="field-grid">
+      <div class="field"><label>Degree / Qualification</label><input type="text" data-key="degree" placeholder="e.g. MBBS, MD, DM"/></div>
+      <div class="field"><label>Specialization / Subject</label><input type="text" data-key="subject" placeholder="e.g. Cardiology"/></div>
+      <div class="field full"><label>College / University</label><input type="text" data-key="college" placeholder="e.g. SMS Medical College, Jaipur"/></div>
+      <div class="field"><label>Year of Passing</label><input type="text" data-key="year" placeholder="2010" maxlength="4" inputmode="numeric"/></div>
+    </div>`,
+  award:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">🏆 Award #${n}</span><button class="btn-remove-entry" type="button" onclick="removeEntry('${id}')">✕ Remove</button></div>
+    <div class="field-grid">
+      <div class="field full"><label>Award / Achievement Title</label><input type="text" data-key="title" placeholder="e.g. Best Doctor Award"/></div>
+      <div class="field"><label>Awarded By</label><input type="text" data-key="by" placeholder="e.g. IMA Rajasthan"/></div>
+      <div class="field"><label>Year</label><input type="text" data-key="year" placeholder="2022" maxlength="4" inputmode="numeric"/></div>
+    </div>`,
+  pub:(n,id)=>`<div class="cv-entry-head"><span class="cv-entry-label">📄 Publication #${n}</span><button class="btn-remove-entry" type="button" onclick="removeEntry('${id}')">✕ Remove</button></div>
+    <div class="field-grid">
+      <div class="field full"><label>Title</label><input type="text" data-key="title" placeholder="e.g. A study on cardiac outcomes in rural Rajasthan"/></div>
+      <div class="field"><label>Journal / Conference</label><input type="text" data-key="journal" placeholder="e.g. Indian Journal of Cardiology"/></div>
+      <div class="field"><label>Year</label><input type="text" data-key="year" placeholder="2021" maxlength="4" inputmode="numeric"/></div>
+    </div>`
+};
+
+function addEntry(type){
+  counts[type]++;
+  const id=type+"-"+counts[type];
+  const d=document.createElement("div");
+  d.className="cv-entry";d.id=id;
+  d.innerHTML=templates[type](counts[type],id);
+  document.getElementById(type+"-entries").appendChild(d);
+}
+function removeEntry(id){const el=document.getElementById(id);if(el)el.remove();}
+
+function collectCV(){
+  const get=(cid)=>Array.from(document.getElementById(cid+"-entries").querySelectorAll(".cv-entry")).map(e=>{
+    const obj={};e.querySelectorAll("input[data-key]").forEach(i=>{if(i.value.trim())obj[i.dataset.key]=i.value.trim();});
+    return Object.keys(obj).length?obj:null;
+  }).filter(Boolean);
+  return{work:get("work"),edu:get("edu"),awards:get("award"),pubs:get("pub")};
+}
+
+async function submitForm(){
+  clearAlert();
+  const required=[
+    {id:"f-name",label:"Full Name"},{id:"f-gender",label:"Gender"},
+    {id:"f-mobile",label:"Mobile Number"},{id:"f-email",label:"Email Address"},
+    {id:"f-spec",label:"Specialization"},{id:"f-hospital",label:"Hospital / Clinic"},
+    {id:"f-district",label:"District"},{id:"f-city",label:"City / Town"},
+  ];
+  for(const r of required){
+    // In edit mode, only name is strictly required
+    if(isEditMode && r.id !== 'f-name') continue;
+    const val=document.getElementById(r.id).value.trim();
+    if(!val){showAlert("Please fill in: "+r.label,"error");document.getElementById(r.id).scrollIntoView({behavior:"smooth",block:"center"});document.getElementById(r.id).classList.add("err");return;}
+    document.getElementById(r.id).classList.remove("err");
+  }
+  if(document.getElementById("f-spec").value==="Other"&&!document.getElementById("f-spec-other").value.trim()){
+    showAlert("Please specify your specialization.","error");document.getElementById("f-spec-other").scrollIntoView({behavior:"smooth",block:"center"});return;
+  }
+  const mobile=document.getElementById("f-mobile").value.trim();
+  if(!isEditMode && !/^[6-9][0-9]{9}$/.test(mobile)){showAlert("Please enter a valid 10-digit Indian mobile number starting with 6,7,8 or 9.","error");document.getElementById("f-mobile").scrollIntoView({behavior:"smooth",block:"center"});return;}
+  const pin=document.getElementById("f-pin").value.trim();
+  if(pin&&!/^[0-9]{6}$/.test(pin)){showAlert("PIN code must be exactly 6 digits.","error");return;}
+  // Skip OTP check in edit mode — user is already logged in
+  if (!isEditMode) {
+    const enteredOTP=document.getElementById("f-otp").value.trim();
+    if(!enteredOTP){showAlert("Please verify your email with OTP first.","error");return;}
+    if(Date.now()>otpExpiry){showAlert("OTP has expired. Please request a new one.","error");return;}
+    if(enteredOTP!==currentOTP){showAlert("Incorrect OTP. Please check and try again.","error");return;}
+  }
+  if(!document.getElementById("f-consent").checked){showAlert("Please read and accept the consent declaration.","error");document.getElementById("f-consent").scrollIntoView({behavior:"smooth",block:"center"});return;}
+
+  const btn=document.getElementById("btn-submit");btn.disabled=true;btn.innerHTML='<div class="spin"></div> Submitting…';
+  const cv=collectCV();
+  const specVal=document.getElementById("f-spec").value==="Other"?document.getElementById("f-spec-other").value.trim():document.getElementById("f-spec").value;
+  const mobilePublic=document.getElementById("f-mobile-public").checked;
+
+  // Build DYNAMIC data object — keys become column names in sheet
+  const data={
+    Name:document.getElementById("f-name").value.trim(),
+    Specialization:specVal,
+    City:document.getElementById("f-city").value.trim(),
+    Hospital:document.getElementById("f-hospital").value.trim(),
+    Position:document.getElementById("f-position").value.trim(),
+    Contact:mobilePublic?"+91"+mobile:"[Private]",
+    "Contact (Admin)":"+91"+mobile,
+    "Mobile Public":mobilePublic?"Yes":"No",
+    Email:document.getElementById("f-email").value.trim().toLowerCase(),
+    Gender:document.getElementById("f-gender").value.trim(),
+    "Registration No":document.getElementById("f-reg").value.trim(),
+    Fees:document.getElementById("f-fees").value.trim(),
+    District:document.getElementById("f-district").value.trim(),
+    Tehsil:document.getElementById("f-tehsil").value.trim(),
+    "PIN Code":pin,
+    Address:document.getElementById("f-address").value.trim(),
+    Timing:document.getElementById("f-timing").value.trim(),
+    Languages:document.getElementById("f-lang").value.trim(),
+    Bio:document.getElementById("f-bio").value.trim(),
+    "Photo URL":document.getElementById("f-photo").value.trim(),
+    "LinkedIn":document.getElementById("f-linkedin").value.trim(),
+    "Twitter/X":document.getElementById("f-twitter").value.trim(),
+    "Facebook":document.getElementById("f-facebook").value.trim(),
+    "Instagram":document.getElementById("f-instagram").value.trim(),
+    "YouTube":document.getElementById("f-youtube").value.trim(),
+    "Website":document.getElementById("f-website").value.trim(),
+    "Practo":document.getElementById("f-practo").value.trim(),
+    "Google Scholar":document.getElementById("f-scholar").value.trim(),
+  };
+
+  // Add work experience as dynamic columns
+  cv.work.forEach((w,i)=>{
+    const n=i+1;
+    data[`Work${n}_Hospital`]=w.hospital||"";
+    data[`Work${n}_Position`]=w.position||"";
+    data[`Work${n}_From`]=w.from||"";
+    data[`Work${n}_To`]=w.to||"";
+  });
+  cv.edu.forEach((e,i)=>{
+    const n=i+1;
+    data[`Edu${n}_Degree`]=e.degree||"";
+    data[`Edu${n}_Subject`]=e.subject||"";
+    data[`Edu${n}_College`]=e.college||"";
+    data[`Edu${n}_Year`]=e.year||"";
+  });
+  cv.awards.forEach((a,i)=>{
+    const n=i+1;
+    data[`Award${n}_Title`]=a.title||"";
+    data[`Award${n}_By`]=a.by||"";
+    data[`Award${n}_Year`]=a.year||"";
+  });
+  cv.pubs.forEach((p,i)=>{
+    const n=i+1;
+    data[`Pub${n}_Title`]=p.title||"";
+    data[`Pub${n}_Journal`]=p.journal||"";
+    data[`Pub${n}_Year`]=p.year||"";
+  });
+
+  data["Status"]="Pending";
+  data["Submitted At"]=new Date().toLocaleString("en-IN");
+
+  try{
+    if(!APPS_SCRIPT_URL)throw new Error("no url");
+
+    if (isEditMode) {
+      // Send as profile update request for admin approval
+      const userRaw = sessionStorage.getItem("rdd_user");
+      const user    = userRaw ? JSON.parse(userRaw) : {};
+      await fetch(APPS_SCRIPT_URL,{
+        method:"POST", mode:"no-cors",
+        headers:{"Content-Type":"text/plain"},
+        body:JSON.stringify({
+          action:   "profile_update",
+          email:    user.email || data["Email"] || "",
+          name:     data["Name"] || user.name || "",
+          changes:  data
+        })
+      });
+    } else {
+      // Normal new registration
+      await fetch(APPS_SCRIPT_URL,{
+        method:"POST", mode:"no-cors",
+        headers:{"Content-Type":"text/plain"},
+        body:JSON.stringify({action:"register",sheetName:"Pending",data})
+      });
+    }
+  }catch(e){if(e.message!=="no url"){showAlert("Submission failed: "+e.message,"error");btn.disabled=false;btn.innerHTML=isEditMode?"Submit Changes for Approval →":"Submit Registration →";return;}}
+
+  clearInterval(otpTimerHnd);
+  document.getElementById("success-name").textContent=document.getElementById("f-name").value.trim();
+  document.getElementById("reg-form").style.display="none";
+  document.getElementById("success-screen").style.display="block";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function showAlert(msg,type){const el=document.getElementById("form-alert");el.textContent=msg;el.className="alert "+type;el.style.display="block";el.scrollIntoView({behavior:"smooth",block:"nearest"});}
+function clearAlert(){document.getElementById("form-alert").style.display="none";}
+</script>
+</body>
+</html>
