@@ -462,72 +462,77 @@ document.addEventListener("DOMContentLoaded",()=>{
 //  ENTER EDIT MODE — change UI and pre-fill all fields
 // ============================================================
 function enterEditMode(doc) {
-  // Update page title and hero
-  document.title = 'Edit Profile — Rajasthan Doctor Directory';
-  const h1 = document.querySelector('.hero-strip h1');
-  if (h1) h1.textContent = 'Edit Your Profile';
-  const hp = document.querySelector('.hero-strip p');
-  if (hp) hp.textContent = 'Update your details below. Changes will be sent to the admin for approval before going live.';
+  // Case-insensitive doc key lookup
+  const get = (...keys) => {
+    for (const k of keys) {
+      const match = Object.keys(doc).find(dk => dk.trim().toLowerCase() === k.toLowerCase());
+      if (match && doc[match] && String(doc[match]).trim()) return String(doc[match]).trim();
+    }
+    return "";
+  };
 
-  // Update submit button
-  const btn = document.getElementById('btn-submit');
-  if (btn) btn.textContent = 'Submit Changes for Approval →';
+  document.title = "Edit Profile — Rajasthan Doctor Directory";
+  const h1 = document.querySelector(".hero-strip h1");
+  if (h1) h1.textContent = "Edit Your Profile";
+  const hp = document.querySelector(".hero-strip p");
+  if (hp) hp.textContent = "Update your details below. Changes will be sent to the admin for approval before going live.";
 
-  // Update success screen message
-  const successP = document.querySelector('#success-screen p');
-  if (successP) successP.innerHTML = 'Thank you, <strong id="success-name"></strong>. Your profile update request has been submitted and is pending admin review. Changes will go live after approval.';
+  const btn = document.getElementById("btn-submit");
+  if (btn) btn.textContent = "Submit Changes for Approval →";
 
-  // Hide OTP section — email already verified
-  const otpSection = document.getElementById('otp-field');
-  if (otpSection) otpSection.style.display = 'none';
-  const sendOTPBtn = document.getElementById('btn-send-otp');
-  if (sendOTPBtn) { sendOTPBtn.style.display = 'none'; }
-  const emailInput = document.getElementById('f-email');
-  if (emailInput) { emailInput.disabled = true; }
+  const successP = document.querySelector("#success-screen p");
+  if (successP) successP.innerHTML = "Thank you, <strong id=\"success-name\"></strong>. Your profile update has been submitted and is pending admin review.";
 
-  // Add edit mode notice at top
-  const formAlert = document.getElementById('form-alert');
+  // Hide OTP section
+  const otpSection = document.getElementById("otp-field");
+  if (otpSection) otpSection.style.display = "none";
+  const sendOTPBtn = document.getElementById("btn-send-otp");
+  if (sendOTPBtn) sendOTPBtn.style.display = "none";
+  const emailInput = document.getElementById("f-email");
+  if (emailInput) emailInput.disabled = true;
+
+  // Show edit notice
+  const formAlert = document.getElementById("form-alert");
   if (formAlert) {
-    formAlert.textContent = '✏️ You are editing your profile. All changes require admin approval before going live.';
-    formAlert.className = 'alert info';
-    formAlert.style.display = 'block';
+    formAlert.textContent = "✏️ You are editing your profile. All changes require admin approval before going live.";
+    formAlert.className = "alert info";
+    formAlert.style.display = "block";
   }
 
-  // Pre-fill all simple fields
+  // Pre-fill all fields using case-insensitive lookup
   const fieldMap = {
-    'f-name':     doc['Name']            || '',
-    'f-gender':   doc['Gender']          || '',
-    'f-mobile':   (doc['Contact (Admin)'] || doc['Contact'] || '').replace(/^\+91/,'').trim(),
-    'f-email':    doc['Email']           || '',
-    'f-spec':     doc['Specialization']  || '',
-    'f-reg':      doc['Registration No'] || '',
-    'f-hospital': doc['Hospital']        || '',
-    'f-position': doc['Position']        || '',
-    'f-fees':     doc['Fees']            || '',
-    'f-timing':   doc['Timing']          || '',
-    'f-lang':     doc['Languages']       || '',
-    'f-address':  doc['Address']         || '',
-    'f-district': doc['District']        || '',
-    'f-city':     doc['City']            || '',
-    'f-tehsil':   doc['Tehsil']          || '',
-    'f-pin':      doc['PIN Code']        || '',
-    'f-bio':      doc['Bio']             || '',
-    'f-photo':    doc['Photo URL']       || '',
-    'f-linkedin': doc['LinkedIn']        || '',
-    'f-twitter':  doc['Twitter/X']       || '',
-    'f-facebook': doc['Facebook']        || '',
-    'f-instagram':doc['Instagram']       || '',
-    'f-youtube':  doc['YouTube']         || '',
-    'f-website':  doc['Website']         || '',
-    'f-practo':   doc['Practo']          || '',
-    'f-scholar':  doc['Google Scholar']  || '',
+    "f-name":     get("name"),
+    "f-gender":   get("gender"),
+    "f-mobile":   (get("contact (admin)") || get("contact") || "").replace(/^\+91/, "").trim(),
+    "f-email":    get("email"),
+    "f-spec":     get("specialization","specialisation","specialty"),
+    "f-reg":      get("registration no","reg no","registration number"),
+    "f-hospital": get("hospital","clinic"),
+    "f-position": get("position","designation"),
+    "f-fees":     get("fees","consultation fees"),
+    "f-timing":   get("timing","availability"),
+    "f-lang":     get("languages","language"),
+    "f-address":  get("address"),
+    "f-district": get("district"),
+    "f-city":     get("city","town"),
+    "f-tehsil":   get("tehsil"),
+    "f-pin":      get("pin code","pincode","pin"),
+    "f-bio":      get("bio","about","about me"),
+    "f-photo":    get("photo url","photo","image"),
+    "f-linkedin": get("linkedin"),
+    "f-twitter":  get("twitter/x","twitter"),
+    "f-facebook": get("facebook"),
+    "f-instagram":get("instagram"),
+    "f-youtube":  get("youtube"),
+    "f-website":  get("website"),
+    "f-practo":   get("practo"),
+    "f-scholar":  get("google scholar","scholar"),
   };
 
   Object.entries(fieldMap).forEach(([id, val]) => {
     const el = document.getElementById(id);
     if (!el || !val) return;
-    if (el.tagName === 'SELECT') {
-      // Try to match option
+    if (el.tagName === "SELECT") {
       Array.from(el.options).forEach(opt => {
         if (opt.value === val || opt.text === val) opt.selected = true;
       });
@@ -537,27 +542,27 @@ function enterEditMode(doc) {
   });
 
   // Handle "Other" specialization
-  const spec = doc['Specialization'] || '';
-  const specSelect = document.getElementById('f-spec');
-  if (specSelect) {
-    const hasOption = Array.from(specSelect.options).some(o => o.value === spec);
-    if (!hasOption && spec) {
-      specSelect.value = 'Other';
-      const otherField = document.getElementById('spec-other-field');
-      if (otherField) otherField.style.display = 'flex';
-      const otherInput = document.getElementById('f-spec-other');
+  const spec = get("specialization","specialisation","specialty");
+  const specSelect = document.getElementById("f-spec");
+  if (specSelect && spec) {
+    const hasOption = Array.from(specSelect.options).some(o => o.value === spec || o.text === spec);
+    if (!hasOption) {
+      specSelect.value = "Other";
+      const otherField = document.getElementById("spec-other-field");
+      if (otherField) otherField.style.display = "flex";
+      const otherInput = document.getElementById("f-spec-other");
       if (otherInput) otherInput.value = spec;
     }
   }
 
   // Validate mobile display
-  const mobileInput = document.getElementById('f-mobile');
+  const mobileInput = document.getElementById("f-mobile");
   if (mobileInput && mobileInput.value) validateMobile(mobileInput);
 
   // Set mobile public toggle
-  const mobilePublic = doc['Mobile Public'] !== 'No';
-  const toggle = document.getElementById('f-mobile-public');
-  if (toggle) toggle.checked = mobilePublic;
+  const mobilePublicVal = get("mobile public");
+  const toggle = document.getElementById("f-mobile-public");
+  if (toggle) toggle.checked = mobilePublicVal !== "No";
 
   // Mark OTP as already verified (skip requirement)
   currentOTP  = 'EDIT_MODE_BYPASS';
