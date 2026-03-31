@@ -462,6 +462,10 @@ document.addEventListener("DOMContentLoaded",()=>{
 //  ENTER EDIT MODE — change UI and pre-fill all fields
 // ============================================================
 function enterEditMode(doc) {
+  // Debug: log what we received
+  console.log("enterEditMode called with keys:", Object.keys(doc));
+  console.log("enterEditMode doc sample:", JSON.stringify(doc).substring(0, 500));
+
   // Case-insensitive doc key lookup
   const get = (...keys) => {
     for (const k of keys) {

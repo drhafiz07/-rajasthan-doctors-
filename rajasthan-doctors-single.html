@@ -507,6 +507,7 @@ function switchProfileTab(tab, myDoc, user) {
   } else if (tab === "edit") {
     // Store doctor data in sessionStorage then redirect
     const docData = myDoc || {};
+    console.log("Saving to sessionStorage for edit:", Object.keys(docData), docData);
     try {
       sessionStorage.setItem("rdd_edit_doc", JSON.stringify(docData));
       sessionStorage.setItem("rdd_edit_mode", "true");
@@ -589,35 +590,22 @@ function doLogout() {
 //  FETCH — uses JSON endpoint (CORS-safe from file://)
 // ============================================================
 async function loadData() {
-  // Google's gviz/tq JSON endpoint works cross-origin from file://
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+  // Use CSV endpoint — always returns exact header names from row 1
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}&t=${Date.now()}`;
 
   try {
     const res = await fetch(url, { mode: "cors" });
-    if (!res.ok) throw new Error(`Server returned HTTP ${res.status}. Make sure the sheet is published.`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}. Make sure the sheet is published.`);
 
-    const raw = await res.text();
+    const csv  = await res.text();
+    const rows = parseCSV(csv);
+    if (!rows || rows.length < 2) throw new Error("Sheet appears empty. Add some doctors first.");
 
-    // Google wraps the JSON in a callback: google.visualization.Query.setResponse({...});
-    const jsonStr = raw.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
-    if (!jsonStr) throw new Error("Unexpected response from Google Sheets. Is the sheet published as CSV?");
-
-    const json = JSON.parse(jsonStr[1]);
-    if (json.status === "error") throw new Error(json.errors[0].message);
-
-    const table = json.table;
-    if (!table || !table.cols || table.cols.length === 0) throw new Error("Sheet appears empty or has no columns.");
-
-    // Extract column headers from row 0 (gviz uses col labels)
-    columns = table.cols.map(c => (c.label || c.id || "").trim()).filter(Boolean);
-
-    // Extract rows
-    allDoctors = (table.rows || []).map(row => {
+    // Row 0 = headers, rows 1+ = data
+    columns    = rows[0].map(h => h.trim()).filter(Boolean);
+    allDoctors = rows.slice(1).map(row => {
       const doc = {};
-      columns.forEach((col, i) => {
-        const cell = row.c && row.c[i];
-        doc[col] = cell && cell.v != null ? String(cell.v).trim() : "";
-      });
+      columns.forEach((col, i) => { doc[col] = (row[i] || "").trim(); });
       return doc;
     }).filter(doc => Object.values(doc).some(v => v));
 
@@ -869,6 +857,28 @@ function getMeta(col) {
 
 function initials(name) {
   return (name || "?").split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase() || "?";
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], nx = text[i+1];
+    if (inQ) {
+      if (ch==='"'&&nx==='"'){field+='"';i++;}
+      else if(ch==='"'){inQ=false;}
+      else field+=ch;
+    } else {
+      if(ch==='"'){inQ=true;}
+      else if(ch===','){row.push(field);field="";}
+      else if(ch==='\n'||(ch==='\r'&&nx==='\n')){
+        if(ch==='\r')i++;
+        row.push(field);rows.push(row);row=[];field="";
+      } else field+=ch;
+    }
+  }
+  if(field||row.length){row.push(field);rows.push(row);}
+  return rows;
 }
 
 function escHTML(str) {

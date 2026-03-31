@@ -761,17 +761,23 @@ async function loadPending() {
       return;
     }
 
+    // Debug: log first doc to see actual keys
+    if (pending.length > 0) console.log("Pending doc keys:", Object.keys(pending[0]), "Values:", pending[0]);
+
     document.getElementById("pending-list").innerHTML = pending.map(doc => {
-      // Dynamic field lookup — handles any column name casing
+      // Dynamic field lookup — handles any column name casing/spacing
       const findVal = (...keys) => {
         for (const k of keys) {
-          const match = Object.keys(doc).find(dk => dk.trim().toLowerCase() === k.toLowerCase());
+          // Try exact match first
+          if (doc[k] && String(doc[k]).trim()) return String(doc[k]).trim();
+          // Try trimmed lowercase match
+          const match = Object.keys(doc).find(dk => dk.trim().toLowerCase() === k.trim().toLowerCase());
           if (match && doc[match] && String(doc[match]).trim()) return String(doc[match]).trim();
         }
         return "";
       };
 
-      const name   = findVal("name") || "Unknown";
+      const name   = findVal("Name","name","NAME") || "Unknown";
       const spec   = findVal("specialization","specialisation","specialty");
       const city   = findVal("city");
       const email  = findVal("email");
@@ -954,17 +960,21 @@ async function loadProfileUpdates() {
       return;
     }
 
+    // Debug: log first doc
+    if (pending.length > 0) console.log("Updates doc keys:", Object.keys(pending[0]), "Values:", pending[0]);
+
     document.getElementById("updates-list").innerHTML = pending.map(doc => {
       const findVal = (...keys) => {
         for (const k of keys) {
-          const match = Object.keys(doc).find(dk => dk.trim().toLowerCase() === k.toLowerCase());
+          if (doc[k] && String(doc[k]).trim()) return String(doc[k]).trim();
+          const match = Object.keys(doc).find(dk => dk.trim().toLowerCase() === k.trim().toLowerCase());
           if (match && doc[match] && String(doc[match]).trim()) return String(doc[match]).trim();
         }
         return "";
       };
 
-      const email   = findVal("email");
-      const name    = findVal("name") || "Unknown";
+      const email   = findVal("Email","email");
+      const name    = findVal("Name","name") || "Unknown";
       const changes = findVal("requested changes") || "{}";
       const date    = findVal("submitted at");
       const cardId  = "ucard-" + doc._row;
