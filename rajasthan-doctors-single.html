@@ -810,19 +810,27 @@ function openModal(cardEl) {
   specEl.style.display = spec ? "inline-block" : "none";
 
   // Columns to always hide from public
-  const adminCols = new Set(["Contact (Admin)","Mobile Public","Status","Submitted At","_row"]);
+  const adminCols = new Set(["Contact (Admin)","Mobile Public","Email (Admin)","Email Public","Status","Submitted At","_row"]);
   const skipKeys  = new Set([nameCol, photoCol, specCol].filter(Boolean));
 
-  // Check if mobile is private
+  // Check privacy for contact and email
   const contactCol = columns.find(c => /^contact$/i.test(c));
-  const isPrivate  = contactCol && doc[contactCol] === "[Private]";
+  const emailCol2  = columns.find(c => /^email$/i.test(c));
+  const isContactPrivate = contactCol && doc[contactCol] === "[Private]";
+  const isEmailPrivate   = emailCol2  && doc[emailCol2]  === "[Private]";
 
-  const privateNotice = isPrivate
-    ? `<div class="modal-field">
+  const privateNotice = [
+    isContactPrivate ? `<div class="modal-field">
         <span class="modal-field-icon">📞</span>
         <span class="modal-field-label">Contact</span>
         <span class="modal-field-value" style="color:var(--ink-3);font-style:italic">🔒 Private — not shown publicly</span>
-      </div>` : "";
+      </div>` : "",
+    isEmailPrivate ? `<div class="modal-field">
+        <span class="modal-field-icon">✉️</span>
+        <span class="modal-field-label">Email</span>
+        <span class="modal-field-value" style="color:var(--ink-3);font-style:italic">🔒 Private — not shown publicly</span>
+      </div>` : ""
+  ].join("");
 
   const fieldsHTML = columns
     .filter(col => !skipKeys.has(col) && !adminCols.has(col) && doc[col] && doc[col] !== "[Private]")

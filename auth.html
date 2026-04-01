@@ -478,23 +478,67 @@ function doLogin() {
   btn.disabled = true;
   btn.innerHTML = '<div class="spin"></div> Signing in…';
 
-  setTimeout(() => {
+  setTimeout(async () => {
     const users = getUsers();
     const user  = users[email];
 
-    if (!user) {
-      showAlert("login-alert", "No account found with this email. Please register first.", "error");
-      btn.disabled = false; btn.innerHTML = "Sign In →"; return;
+    if (user) {
+      // Found in local storage
+      if (user.password !== hashPwd(pwd)) {
+        showAlert("login-alert", "Incorrect password. Please try again.", "error");
+        btn.disabled = false; btn.innerHTML = "Sign In →"; return;
+      }
+      sessionStorage.setItem("rdd_user", JSON.stringify({ name: user.name, email, mobile: user.mobile }));
+      showAlert("login-alert", "✓ Welcome back, " + user.name + "! Redirecting…", "success");
+      setTimeout(() => window.location.href = DIRECTORY_PAGE, 1200);
+    } else {
+      // Not in local storage — check Google Sheets Users tab
+      showAlert("login-alert", "Checking account on server…", "info");
+      try {
+        const SHEET_ID = "17qxpKmS93HTabcafybGZdez9nrSN228_cuMOUfxNOBc";
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Users&headers=1&t=${Date.now()}`;
+        const res = await fetch(url, { mode: "cors" });
+        const csv = await res.text();
+        const rows = parseCSV(csv);
+        if (rows && rows.length > 1) {
+          const hdrs = rows[0].map(h => h.trim().toLowerCase());
+          const emailIdx = hdrs.indexOf("email");
+          const nameIdx  = hdrs.indexOf("name");
+          const mobileIdx= hdrs.indexOf("mobile");
+          const pwdIdx   = hdrs.indexOf("password hash");
+          const match = rows.slice(1).find(r => (r[emailIdx]||'').trim().toLowerCase() === email);
+          if (match) {
+            // Account exists in sheet — check password
+            const storedHash = pwdIdx > -1 ? (match[pwdIdx]||'').trim() : '';
+            if (storedHash && storedHash !== hashPwd(pwd)) {
+              showAlert("login-alert", "Incorrect password. Please try again.", "error");
+              btn.disabled = false; btn.innerHTML = "Sign In →"; return;
+            }
+            // Sync to local storage for future logins
+            const syncedUser = {
+              name:     (match[nameIdx]||'').trim() || email.split('@')[0],
+              mobile:   mobileIdx > -1 ? (match[mobileIdx]||'').trim() : '',
+              password: storedHash || hashPwd(pwd),
+              verified: true,
+              joinedAt: new Date().toISOString()
+            };
+            const allUsers = getUsers();
+            allUsers[email] = syncedUser;
+            saveUsers(allUsers);
+            sessionStorage.setItem("rdd_user", JSON.stringify({ name: syncedUser.name, email, mobile: syncedUser.mobile }));
+            showAlert("login-alert", "✓ Welcome back, " + syncedUser.name + "! Redirecting…", "success");
+            setTimeout(() => window.location.href = DIRECTORY_PAGE, 1200);
+            return;
+          }
+        }
+        // Not found anywhere
+        showAlert("login-alert", "No account found with this email. Please register first.", "error");
+        btn.disabled = false; btn.innerHTML = "Sign In →";
+      } catch(e) {
+        showAlert("login-alert", "No account found with this email. Please register first.", "error");
+        btn.disabled = false; btn.innerHTML = "Sign In →";
+      }
     }
-    if (user.password !== hashPwd(pwd)) {
-      showAlert("login-alert", "Incorrect password. Please try again.", "error");
-      btn.disabled = false; btn.innerHTML = "Sign In →"; return;
-    }
-
-    // Success — store session
-    sessionStorage.setItem("rdd_user", JSON.stringify({ name: user.name, email, mobile: user.mobile }));
-    showAlert("login-alert", "✓ Welcome back, " + user.name + "! Redirecting…", "success");
-    setTimeout(() => window.location.href = DIRECTORY_PAGE, 1200);
   }, 600);
 }
 
@@ -604,11 +648,12 @@ function verifyOTP() {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({
-        action:   "register_user",
-        name:     pendingUser.name,
-        email:    pendingUser.email,
-        mobile:   pendingUser.mobile,
-        joinedAt: new Date().toLocaleString("en-IN")
+        action:       "register_user",
+        name:         pendingUser.name,
+        email:        pendingUser.email,
+        mobile:       pendingUser.mobile,
+        passwordHash: pendingUser.password,
+        joinedAt:     new Date().toLocaleString("en-IN")
       })
     }).catch(e => console.log("Sheet sync skipped:", e.message));
 
@@ -682,6 +727,30 @@ function clearOTPTimer() {
 // ============================================================
 //  HELPERS
 // ============================================================
+function parseCSV(text) {
+  if (!text || !text.trim()) return [];
+  const rows = [];
+  let row = [], field = "", inQ = false;
+  text = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+  for (let i = 0; i <= text.length; i++) {
+    const ch = i < text.length ? text[i] : "\n";
+    if (inQ) {
+      if (ch==='"'&&text[i+1]==='"'){field+='"';i++;}
+      else if(ch==='"'){inQ=false;}
+      else field+=ch;
+    } else {
+      if(ch==='"'){inQ=true;}
+      else if(ch===','){row.push(field.trim());field="";}
+      else if(ch==="\n"){
+        row.push(field.trim());
+        if(row.some(f=>f!=""))rows.push(row);
+        row=[];field="";
+      } else field+=ch;
+    }
+  }
+  return rows;
+}
+
 function getUsers()       { try { return JSON.parse(localStorage.getItem("rdd_users") || "{}"); } catch { return {}; } }
 function saveUsers(users) { localStorage.setItem("rdd_users", JSON.stringify(users)); }
 

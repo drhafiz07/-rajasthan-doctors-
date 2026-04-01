@@ -790,9 +790,10 @@ async function loadPending() {
       const cardId = "pcard-" + doc._row;
 
       // Build full profile grouped display from ALL doc keys
-      const adminKeys  = new Set(["status","submitted at","contact (admin)","mobile public","_row"]);
+      // Admin sees everything — only hide truly internal fields
+      const adminKeys  = new Set(["status","submitted at","mobile public","email public","_row"]);
       const sectionDef = [
-        { title:"👤 Personal",     keys:["name","gender","contact","email","mobile public"] },
+        { title:"👤 Personal",     keys:["name","gender","contact","contact (admin)","email","email (admin)","mobile public","email public"] },
         { title:"🏥 Professional", keys:["specialization","specialisation","specialty","hospital","position","registration no","fees","timing","languages","address"] },
         { title:"📍 Location",     keys:["city","district","tehsil","pin code"] },
         { title:"📝 Bio",          keys:["bio","about"] },
@@ -991,7 +992,8 @@ async function loadProfileUpdates() {
       catch(e) { parseError = e.message; }
 
       // Fields to always hide from admin changes view
-      const skipShow = new Set(["status","submitted at","contact (admin)","mobile public","_row"]);
+      // Admin sees contact details even if private
+      const skipShow = new Set(["status","submitted at","mobile public","email public","_row"]);
       const changeEntries = Object.entries(changesObj).filter(([k,v]) =>
         !skipShow.has(k.trim().toLowerCase()) && v && String(v).trim()
       );

@@ -29,24 +29,62 @@ function setupSheets() {
   let updates = ss.getSheetByName("Profile Updates");
   if (!updates) {
     updates = ss.insertSheet("Profile Updates");
-    updates.appendRow(["Email","Name","Requested Changes","Submitted At","Status"]);
-    updates.getRange(1,1,1,5).setFontWeight("bold").setBackground("#185FA5").setFontColor("#FFFFFF");
+    updates.appendRow(["Email","Name","Requested Changes","Submitted At","Status","Admin Notes"]);
+    updates.getRange(1,1,1,6).setFontWeight("bold").setBackground("#185FA5").setFontColor("#FFFFFF");
     updates.setFrozenRows(1);
-    updates.setColumnWidth(3, 500);
+    updates.setColumnWidth(1, 200); // Email
+    updates.setColumnWidth(2, 150); // Name
+    updates.setColumnWidth(3, 500); // Changes
     msgs.push("Profile Updates tab created.");
   } else {
-    msgs.push("Profile Updates tab already exists.");
+    // Fix existing sheet — ensure headers are correct in row 1
+    const existingHdrs = updates.getRange(1,1,1,updates.getLastColumn()).getValues()[0];
+    const expectedHdrs = ["Email","Name","Requested Changes","Submitted At","Status","Admin Notes"];
+    let needsFix = false;
+    expectedHdrs.forEach((h,i) => { if (String(existingHdrs[i]||"").trim() !== h) needsFix = true; });
+    if (needsFix) {
+      // Check if row 1 looks like headers or data
+      const firstCellVal = String(existingHdrs[0] || "").trim();
+      if (firstCellVal === "" || firstCellVal.toLowerCase() === "email") {
+        // Fix blank or wrong headers
+        updates.getRange(1,1,1,expectedHdrs.length).setValues([expectedHdrs]);
+        updates.getRange(1,1,1,expectedHdrs.length).setFontWeight("bold").setBackground("#185FA5").setFontColor("#FFFFFF");
+        msgs.push("Profile Updates headers fixed.");
+      }
+    } else {
+      msgs.push("Profile Updates tab already exists.");
+    }
   }
 
   let usersSheet = ss.getSheetByName("Users");
   if (!usersSheet) {
     usersSheet = ss.insertSheet("Users");
-    usersSheet.appendRow(["Name","Email","Mobile","Joined At","Is Doctor"]);
+    usersSheet.appendRow(["Name","Email","Mobile","Password Hash","Joined At","Is Doctor"]);
     usersSheet.getRange(1,1,1,5).setFontWeight("bold").setBackground("#2D7A3A").setFontColor("#FFFFFF");
     usersSheet.setFrozenRows(1);
+    usersSheet.setColumnWidth(4, 180); // Password Hash (hidden from view but readable)
     msgs.push("Users tab created.");
   } else {
     msgs.push("Users tab already exists.");
+  }
+
+  // Fix Sheet1 if headers look like they contain data (merged header+value)
+  const sheet1 = ss.getSheetByName("Sheet1");
+  if (sheet1 && sheet1.getLastRow() > 0) {
+    const hdrs = sheet1.getRange(1,1,1,sheet1.getLastColumn()).getValues()[0];
+    const correctHeaders = ["Name","Specialization","City","Hospital","Position","Contact","Contact (Admin)","Mobile Public","Email","Gender","Registration No","Fees","District","Tehsil","PIN Code","Address","Timing","Languages","Bio","Photo URL","LinkedIn","Twitter/X","Facebook","Instagram","YouTube","Website","Practo","Google Scholar","Status","Submitted At"];
+    // Check if row 1 looks like actual headers (first cell should be "Name")
+    if (String(hdrs[0]).trim() !== "Name") {
+      // Row 1 is likely data, not headers - insert a header row
+      sheet1.insertRowBefore(1);
+      // Set the known fixed headers
+      sheet1.getRange(1,1,1,correctHeaders.length).setValues([correctHeaders]);
+      sheet1.getRange(1,1,1,correctHeaders.length).setFontWeight("bold").setBackground("#5E0819").setFontColor("#FFFFFF");
+      sheet1.setFrozenRows(1);
+      msgs.push("Sheet1: inserted missing header row.");
+    } else {
+      msgs.push("Sheet1 headers look correct.");
+    }
   }
 
   SpreadsheetApp.getUi().alert("Setup complete!\n\n" + msgs.join("\n"));
@@ -154,7 +192,7 @@ function doPost(e) {
       let usersSheet = ss.getSheetByName("Users");
       if (!usersSheet) {
         usersSheet = ss.insertSheet("Users");
-        usersSheet.appendRow(["Name","Email","Mobile","Joined At","Is Doctor"]);
+        usersSheet.appendRow(["Name","Email","Mobile","Password Hash","Joined At","Is Doctor"]);
         usersSheet.getRange(1,1,1,5).setFontWeight("bold").setBackground("#2D7A3A").setFontColor("#FFFFFF");
         usersSheet.setFrozenRows(1);
       }
@@ -177,7 +215,14 @@ function doPost(e) {
           if (emails.includes((payload.email||"").toLowerCase().trim())) isDoctor = "Yes";
         }
       }
-      usersSheet.appendRow([payload.name||"", payload.email||"", payload.mobile||"", payload.joinedAt||new Date().toLocaleString("en-IN"), isDoctor]);
+      usersSheet.appendRow([
+        payload.name         || "",
+        payload.email        || "",
+        payload.mobile       || "",
+        payload.passwordHash || "",
+        payload.joinedAt     || new Date().toLocaleString("en-IN"),
+        isDoctor
+      ]);
       return respond({ status: "ok", message: "User registered." });
     }
 
@@ -194,12 +239,19 @@ function doPost(e) {
       const changes    = payload.changes || {};
       let changesStr   = JSON.stringify(changes);
       if (changesStr.length > 45000) changesStr = changesStr.substring(0, 45000) + "...";
+      // Ensure headers exist and are correct before appending
+      const hdrRow = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0];
+      if (!hdrRow[0] || String(hdrRow[0]).trim() === "") {
+        sheet.getRange(1,1,1,6).setValues([["Email","Name","Requested Changes","Submitted At","Status","Admin Notes"]]);
+        sheet.getRange(1,1,1,6).setFontWeight("bold").setBackground("#185FA5").setFontColor("#FFFFFF");
+      }
       sheet.appendRow([
         payload.email || "",
         payload.name  || "",
         changesStr,
         new Date().toLocaleString("en-IN"),
-        "Pending"
+        "Pending",
+        ""
       ]);
       notifyAdminUpdate(payload.name, payload.email);
       return respond({ status: "ok", message: "Update request submitted." });

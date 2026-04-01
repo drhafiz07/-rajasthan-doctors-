@@ -173,6 +173,13 @@
             </div>
             <div class="otp-timer" id="otp-timer"></div>
           </div>
+          <div class="field full">
+            <label>Email Privacy</label>
+            <label class="privacy-toggle">
+              <input type="checkbox" id="f-email-public"/>
+              <span><strong>Show my email publicly</strong> — uncheck to hide from public (admin can always see it)</span>
+            </label>
+          </div>
           <div class="field full" id="otp-field" style="display:none">
             <label>Enter OTP <span class="req">*</span></label>
             <input type="text" id="f-otp" placeholder="------" maxlength="6" style="text-align:center;font-size:22px;font-weight:700;letter-spacing:10px" inputmode="numeric" onkeypress="return /[0-9]/.test(event.key)"/>
@@ -434,6 +441,45 @@ document.addEventListener("DOMContentLoaded",()=>{
   // Always add default CV entry rows first
   addEntry('work'); addEntry('edu');
 
+  // Pre-fill email from logged-in session and lock it (Issue 2)
+  if (!isEditMode) {
+    try {
+      const sessionUser = sessionStorage.getItem("rdd_user");
+      if (sessionUser) {
+        const u = JSON.parse(sessionUser);
+        if (u.email) {
+          const emailEl = document.getElementById("f-email");
+          if (emailEl) {
+            emailEl.value = u.email;
+            emailEl.disabled = true;
+            emailEl.title = "Email cannot be changed";
+          }
+          // Also hide OTP row since email is already verified
+          const otpBtn = document.getElementById("btn-send-otp");
+          if (otpBtn) otpBtn.style.display = "none";
+          const otpHint = document.createElement("div");
+          otpHint.style.cssText = "font-size:11px;color:var(--green);margin-top:4px;font-weight:600";
+          otpHint.textContent = "✓ Email verified from your account";
+          const emailField = emailEl.closest(".field");
+          if (emailField) emailField.appendChild(otpHint);
+          // Auto-bypass OTP
+          currentOTP = "SESSION_VERIFIED";
+          otpExpiry  = Date.now() + 999 * 60 * 1000;
+          document.getElementById("f-otp").value = "SESSION_VERIFIED";
+          if (document.getElementById("otp-field")) document.getElementById("otp-field").style.display = "none";
+        }
+        // Also pre-fill mobile if available
+        if (u.mobile) {
+          const mobileEl = document.getElementById("f-mobile");
+          if (mobileEl && !mobileEl.value) {
+            mobileEl.value = u.mobile.replace(/^\+91/, "").trim();
+            validateMobile(mobileEl);
+          }
+        }
+      }
+    } catch(e) { console.log("Session prefill skipped:", e); }
+  }
+
   // Check if opened in edit mode via sessionStorage
   try {
     const editFlag = sessionStorage.getItem("rdd_edit_mode");
@@ -567,6 +613,11 @@ function enterEditMode(doc) {
   const mobilePublicVal = get("mobile public");
   const toggle = document.getElementById("f-mobile-public");
   if (toggle) toggle.checked = mobilePublicVal !== "No";
+
+  // Set email public toggle
+  const emailPublicVal = get("email public");
+  const emailToggle = document.getElementById("f-email-public");
+  if (emailToggle) emailToggle.checked = emailPublicVal === "Yes";
 
   // Mark OTP as already verified (skip requirement)
   currentOTP  = 'EDIT_MODE_BYPASS';
@@ -780,6 +831,8 @@ async function submitForm(){
     "Contact (Admin)":"+91"+mobile,
     "Mobile Public":mobilePublic?"Yes":"No",
     Email:document.getElementById("f-email").value.trim().toLowerCase(),
+    "Email Public":document.getElementById("f-email-public").checked?"Yes":"No",
+    "Email (Admin)":document.getElementById("f-email").value.trim().toLowerCase(),
     Gender:document.getElementById("f-gender").value.trim(),
     "Registration No":document.getElementById("f-reg").value.trim(),
     Fees:document.getElementById("f-fees").value.trim(),
