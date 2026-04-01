@@ -768,10 +768,14 @@ function buildCard(doc) {
   const _contactCol      = columns.find(c => /^contact$/i.test(c));
   const _emailColCard    = columns.find(c => /^email$/i.test(c));
 
-  const _mobileHide = (_contactCol && doc[_contactCol] === "[Private]") ||
-                      (_mobilePublicCol && doc[_mobilePublicCol] === "No");
-  const _emailHide  = (_emailColCard && doc[_emailColCard] === "[Private]") ||
-                      (_emailPublicCol && doc[_emailPublicCol] === "No");
+  // Robust privacy check — handle any casing/spacing from CSV
+  const _isNo = v => String(v||"").trim().toLowerCase() === "no";
+  const _isPrivate = v => String(v||"").trim() === "[Private]";
+
+  const _mobileHide = _isPrivate(_contactCol ? doc[_contactCol] : "") ||
+                      _isNo(_mobilePublicCol ? doc[_mobilePublicCol] : "");
+  const _emailHide  = _isPrivate(_emailColCard ? doc[_emailColCard] : "") ||
+                      _isNo(_emailPublicCol ? doc[_emailPublicCol] : "");
 
   const previewCols = columns.filter(col => {
     if (skipKeys.has(col) || cardHideCols.has(col)) return false;
@@ -852,11 +856,14 @@ function openModal(cardEl) {
   const mobilePublicCol = columns.find(c => /^mobile.?public$/i.test(c));
   const emailPublicCol  = columns.find(c => /^email.?public$/i.test(c));
 
-  // Determine privacy — check BOTH [Private] value AND Mobile Public / Email Public columns
-  const isContactPrivate = (contactCol && doc[contactCol] === "[Private]") ||
-                           (mobilePublicCol && doc[mobilePublicCol] === "No");
-  const isEmailPrivate   = (emailCol2 && doc[emailCol2] === "[Private]") ||
-                           (emailPublicCol && doc[emailPublicCol] === "No");
+  // Robust privacy: check [Private] text AND public/private column
+  const _isNoVal = v => String(v||"").trim().toLowerCase() === "no";
+  const _isPrivVal = v => String(v||"").trim() === "[Private]";
+
+  const isContactPrivate = _isPrivVal(contactCol ? doc[contactCol] : "") ||
+                           _isNoVal(mobilePublicCol ? doc[mobilePublicCol] : "");
+  const isEmailPrivate   = _isPrivVal(emailCol2 ? doc[emailCol2] : "") ||
+                           _isNoVal(emailPublicCol ? doc[emailPublicCol] : "");
 
   const privateNotice = [
     isContactPrivate ? `<div class="modal-field">

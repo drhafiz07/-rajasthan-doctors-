@@ -926,12 +926,37 @@ async function loadProfileUpdates() {
   document.getElementById("updates-loading").style.display = "block";
   document.getElementById("updates-list").innerHTML = "";
 
-  // Use CSV for reliable header reading
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Profile%20Updates&headers=1&t=${Date.now()}`;
+  // Fetch BOTH Profile Updates AND Sheet1 (for old vs new comparison)
+  const url     = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Profile%20Updates&headers=1&t=${Date.now()}`;
+  const url1    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}&headers=1&t=${Date.now()}`;
   try {
-    const res = await fetch(url, { mode: "cors" });
+    // Fetch both in parallel
+    const [res, res1] = await Promise.all([
+      fetch(url,  { mode: "cors" }),
+      fetch(url1, { mode: "cors" })
+    ]);
     if (!res.ok) throw new Error("Profile Updates sheet not found (HTTP " + res.status + "). Run setupSheets() in Apps Script first.");
-    const csv = await res.text();
+    const csv  = await res.text();
+    // Build a lookup map of current doctor data by email
+    const currentDoctors = {};
+    try {
+      const csv1  = await res1.text();
+      const rows1 = parseCSV(csv1);
+      if (rows1 && rows1.length > 1) {
+        const hdrs1    = rows1[0].map(h => h.trim());
+        const emailIdx = hdrs1.findIndex(h => /^email$/i.test(h));
+        if (emailIdx > -1) {
+          rows1.slice(1).forEach(row => {
+            const emailVal = (row[emailIdx]||"").trim().toLowerCase();
+            if (emailVal) {
+              const doc = {};
+              hdrs1.forEach((h,i) => { doc[h] = (row[i]||"").trim(); });
+              currentDoctors[emailVal] = doc;
+            }
+          });
+        }
+      }
+    } catch(e) { console.log("Sheet1 fetch skipped:", e); }
 
     const rows = parseCSV(csv);
     if (!rows || rows.length < 2) {
@@ -1016,29 +1041,44 @@ async function loadProfileUpdates() {
       } else {
         const usedKeys = new Set();
 
+        // Get current doctor data for old/new comparison
+        const currentDoc = currentDoctors[email.toLowerCase()] || {};
+
+        // Helper to render one change row with old value
+        const renderChangeRow = (k, v, bg, fg, badgebg, label) => {
+          // Find old value from current Sheet1 data
+          const oldKey = Object.keys(currentDoc).find(dk => dk.trim().toLowerCase() === k.trim().toLowerCase());
+          const oldVal = oldKey ? (currentDoc[oldKey]||"").trim() : "";
+          const isUrl  = /^https?:\/\//i.test(String(v));
+          const newDisp = isUrl
+            ? `<a href="${escHTML(String(v))}" target="_blank" style="color:var(--blue);word-break:break-all">${escHTML(String(v).substring(0,80))}</a>`
+            : escHTML(String(v).substring(0,200));
+          const oldDisp = oldVal && oldVal !== String(v)
+            ? `<div style="font-size:11px;color:#6B7280;margin-top:3px;text-decoration:line-through">${escHTML(oldVal.substring(0,100))}</div>`
+            : oldVal ? "" : `<div style="font-size:11px;color:#9CA3AF;margin-top:3px;font-style:italic">was empty</div>`;
+          return `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;border-bottom:1px solid ${badgebg};background:${bg}">
+            <span style="min-width:120px;font-size:11px;font-weight:600;color:var(--ink-3);flex-shrink:0;padding-top:2px">${escHTML(k)}</span>
+            <div style="flex:1;word-break:break-word">
+              <div style="font-size:13px;color:${fg};font-weight:600">${newDisp}</div>
+              ${oldDisp}
+            </div>
+            <span style="background:${badgebg};color:${fg};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;flex-shrink:0;white-space:nowrap">${label}</span>
+          </div>`;
+        };
+
         sectionDef.forEach(sec => {
-          // Case-insensitive match
           const matched = changeEntries.filter(([k]) =>
             sec.keys.some(p => k.trim().toLowerCase() === p.toLowerCase())
           );
           if (!matched.length) return;
-
           changesHTML += `<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:${sec.fg};padding:8px 14px 4px;letter-spacing:.6px;background:${sec.bg};border-top:2px solid ${sec.badgebg}">${sec.title}</div>`;
           matched.forEach(([k,v]) => {
             usedKeys.add(k);
-            const isUrl = /^https?:\/\//i.test(String(v));
-            const disp = isUrl
-              ? `<a href="${escHTML(String(v))}" target="_blank" style="color:var(--blue);word-break:break-all">${escHTML(String(v).substring(0,80))}</a>`
-              : escHTML(String(v).substring(0,300));
-            changesHTML += `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 14px;border-bottom:1px solid ${sec.badgebg};background:${sec.bg}">
-              <span style="min-width:120px;font-size:11px;font-weight:600;color:var(--ink-3);flex-shrink:0;padding-top:2px">${escHTML(k)}</span>
-              <span style="font-size:13px;color:${sec.fg};font-weight:500;flex:1;word-break:break-word">${disp}</span>
-              <span style="background:${sec.badgebg};color:${sec.fg};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;flex-shrink:0;white-space:nowrap">✎ CHANGED</span>
-            </div>`;
+            changesHTML += renderChangeRow(k, v, sec.bg, sec.fg, sec.badgebg, "✎ CHANGED");
           });
         });
 
-        // CV entries and other fields not in any section
+        // CV entries and other fields
         const remaining = changeEntries.filter(([k]) => !usedKeys.has(k));
         if (remaining.length) {
           changesHTML += `<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#1E40AF;padding:8px 14px 4px;letter-spacing:.6px;background:#EFF6FF;border-top:2px solid #BFDBFE">📋 CV / Other Fields</div>`;
@@ -1048,11 +1088,7 @@ async function loadProfileUpdates() {
             const fg    = isNew ? "#075985" : "#065F46";
             const badge = isNew ? "#BAE6FD" : "#D1FAE5";
             const label = isNew ? "✦ NEW" : "✎ CHANGED";
-            changesHTML += `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 14px;border-bottom:1px solid ${badge};background:${bg}">
-              <span style="min-width:120px;font-size:11px;font-weight:600;color:var(--ink-3);flex-shrink:0;padding-top:2px">${escHTML(k.replace(/_/g," "))}</span>
-              <span style="font-size:13px;color:${fg};font-weight:500;flex:1;word-break:break-word">${escHTML(String(v).substring(0,300))}</span>
-              <span style="background:${badge};color:${fg};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;flex-shrink:0;white-space:nowrap">${label}</span>
-            </div>`;
+            changesHTML += renderChangeRow(k.replace(/_/g," "), v, bg, fg, badge, label);
           });
         }
       }

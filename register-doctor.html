@@ -490,9 +490,8 @@ document.addEventListener("DOMContentLoaded",()=>{
     if (editFlag === "true" && editData) {
       editDocData = JSON.parse(editData);
       isEditMode  = true;
-      // Clear flags so refresh doesn't re-enter edit mode
-      sessionStorage.removeItem("rdd_edit_mode");
-      sessionStorage.removeItem("rdd_edit_doc");
+      // Keep sessionStorage — cleared only on successful submit or navigation away
+      // This allows page refresh to retain pre-filled data
       enterEditMode(editDocData);
       // Pre-fill CV entries after a short delay to ensure DOM is ready
       setTimeout(() => prefillCVEntries(editDocData), 200);
@@ -916,6 +915,10 @@ async function submitForm(){
       });
     }
   }catch(e){if(e.message!=="no url"){showAlert("Submission failed: "+e.message,"error");btn.disabled=false;btn.innerHTML=isEditMode?"Submit Changes for Approval →":"Submit Registration →";return;}}
+
+  // Clear edit session data only after successful submission
+  sessionStorage.removeItem("rdd_edit_mode");
+  sessionStorage.removeItem("rdd_edit_doc");
 
   clearInterval(otpTimerHnd);
   document.getElementById("success-name").textContent=document.getElementById("f-name").value.trim();
