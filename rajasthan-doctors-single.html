@@ -461,7 +461,8 @@ function switchProfileTab(tab, myDoc, user) {
     }
 
     // Build view from all columns
-    const skipCols = new Set(["Contact (Admin)", "Mobile Public", "Status", "Submitted At"]);
+    // In My Profile: hide internal admin cols, but show doctor their own data
+    const skipCols = new Set(["Contact (Admin)", "Mobile Public", "Email (Admin)", "Email Public", "Status", "Submitted At"]);
     const nameCol  = columns.find(c => /^name$/i.test(c));
     const specCol  = columns.find(c => /special|spec/i.test(c));
     const photoCol = columns.find(c => /photo.*url|^photo$/i.test(c));
@@ -475,10 +476,22 @@ function switchProfileTab(tab, myDoc, user) {
       .map(c => {
         const m   = getMeta(c);
         const val = myDoc[c];
-        const isSocial = m.social || /^https?:\/\//i.test(val);
-        const valHTML  = isSocial
-          ? `<a href="${escHTML(val)}" target="_blank" rel="noopener" style="color:var(--blue);word-break:break-all">${escHTML(val)}</a>`
-          : escHTML(val);
+        // Show [Private] fields to the doctor with a badge
+        const isPrivateVal = val === "[Private]";
+        const isSocial = !isPrivateVal && (m.social || /^https?:\/\//i.test(val));
+
+        // For admin fields, show actual value to the doctor
+        const adminColMap = {"Contact": "Contact (Admin)", "Email": "Email (Admin)"};
+        let displayVal = val;
+        if (isPrivateVal && adminColMap[c] && myDoc[adminColMap[c]]) {
+          displayVal = myDoc[adminColMap[c]];
+        }
+
+        const valHTML = isPrivateVal
+          ? `<span style="color:var(--ink-3);font-style:italic">🔒 ${escHTML(displayVal)} <span style="background:#FEE2E2;color:#991B1B;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px">Hidden from public</span></span>`
+          : isSocial
+            ? `<a href="${escHTML(displayVal)}" target="_blank" rel="noopener" style="color:var(--blue);word-break:break-all">${escHTML(displayVal)}</a>`
+            : escHTML(displayVal);
         return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px">
           <span style="width:20px;text-align:center;flex-shrink:0">${m.icon}</span>
           <span style="min-width:100px;flex-shrink:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-3);margin-top:2px">${escHTML(m.label||c)}</span>
@@ -746,7 +759,14 @@ function buildCard(doc) {
   const placeholderHTML = `<div class="card-avatar-placeholder" ${photo ? 'style="display:none"' : ""}>${initials(name)}</div>`;
 
   // Show only first 3 non-skipped, non-empty columns
-  const previewCols = columns.filter(col => !skipKeys.has(col) && doc[col] && doc[col] !== '[Private]').slice(0, 3);
+  // Skip admin-only columns AND [Private] values in card preview
+  const cardHideCols = new Set(["Contact (Admin)","Mobile Public","Email (Admin)","Email Public","Status","Submitted At"]);
+  const previewCols = columns.filter(col =>
+    !skipKeys.has(col) &&
+    !cardHideCols.has(col) &&
+    doc[col] &&
+    doc[col] !== "[Private]"
+  ).slice(0, 3);
 
   const fieldRows = previewCols.map(col => {
     const m = getMeta(col);
@@ -833,7 +853,7 @@ function openModal(cardEl) {
   ].join("");
 
   const fieldsHTML = columns
-    .filter(col => !skipKeys.has(col) && !adminCols.has(col) && doc[col] && doc[col] !== "[Private]")
+    .filter(col => !skipKeys.has(col) && !adminCols.has(col) && doc[col] && String(doc[col]).trim() && doc[col] !== "[Private]")
     .map(col => {
       const m   = getMeta(col);
       const val = doc[col];

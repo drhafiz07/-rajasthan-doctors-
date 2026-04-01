@@ -176,7 +176,7 @@
           <div class="field full">
             <label>Email Privacy</label>
             <label class="privacy-toggle">
-              <input type="checkbox" id="f-email-public"/>
+              <input type="checkbox" id="f-email-public" checked/>
               <span><strong>Show my email publicly</strong> — uncheck to hide from public (admin can always see it)</span>
             </label>
           </div>
@@ -472,7 +472,10 @@ document.addEventListener("DOMContentLoaded",()=>{
         if (u.mobile) {
           const mobileEl = document.getElementById("f-mobile");
           if (mobileEl && !mobileEl.value) {
-            mobileEl.value = u.mobile.replace(/^\+91/, "").trim();
+            // Strip any country code prefix
+            let cleanMobile = String(u.mobile).trim()
+              .replace(/^\+91/, "").replace(/^91/, "").replace(/\s/g, "").trim();
+            mobileEl.value = cleanMobile;
             validateMobile(mobileEl);
           }
         }
@@ -830,7 +833,9 @@ async function submitForm(){
     Contact:mobilePublic?"+91"+mobile:"[Private]",
     "Contact (Admin)":"+91"+mobile,
     "Mobile Public":mobilePublic?"Yes":"No",
-    Email:document.getElementById("f-email").value.trim().toLowerCase(),
+    Email:document.getElementById("f-email-public").checked
+          ? document.getElementById("f-email").value.trim().toLowerCase()
+          : "[Private]",
     "Email Public":document.getElementById("f-email-public").checked?"Yes":"No",
     "Email (Admin)":document.getElementById("f-email").value.trim().toLowerCase(),
     Gender:document.getElementById("f-gender").value.trim(),
