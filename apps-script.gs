@@ -371,6 +371,68 @@ function doGet(e) {
 }
 
 // ------------------------------------------------------------
+//  RUN ONCE: Fix existing Sheet1 rows — apply privacy columns
+//  Go to Apps Script → Run → fixPrivacy()
+// ------------------------------------------------------------
+function fixPrivacy() {
+  const ss    = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName("Sheet1");
+  if (!sheet) { SpreadsheetApp.getUi().alert("Sheet1 not found!"); return; }
+
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  const hdrs    = sheet.getRange(1,1,1,lastCol).getValues()[0].map(h => String(h).trim());
+
+  const contactIdx      = hdrs.indexOf("Contact");
+  const contactAdminIdx = hdrs.indexOf("Contact (Admin)");
+  const mobilePublicIdx = hdrs.indexOf("Mobile Public");
+  const emailIdx        = hdrs.indexOf("Email");
+  const emailAdminIdx   = hdrs.indexOf("Email (Admin)");
+  const emailPublicIdx  = hdrs.indexOf("Email Public");
+
+  if (lastRow < 2) { SpreadsheetApp.getUi().alert("No data rows found."); return; }
+
+  let fixed = 0;
+  const dataRows = sheet.getRange(2,1,lastRow-1,lastCol).getValues();
+
+  dataRows.forEach((row, i) => {
+    const rowNum = i + 2;
+    let changed = false;
+
+    // Fix mobile: if Mobile Public = "No" but Contact is not [Private]
+    if (mobilePublicIdx > -1 && contactIdx > -1) {
+      const mobilePublic = String(row[mobilePublicIdx]).trim();
+      const contact      = String(row[contactIdx]).trim();
+      if (mobilePublic === "No" && contact !== "[Private]") {
+        // Save real number to Contact (Admin) if not already there
+        if (contactAdminIdx > -1 && !String(row[contactAdminIdx]).trim()) {
+          sheet.getRange(rowNum, contactAdminIdx+1).setValue(contact);
+        }
+        sheet.getRange(rowNum, contactIdx+1).setValue("[Private]");
+        changed = true;
+      }
+    }
+
+    // Fix email: if Email Public = "No" but Email is not [Private]
+    if (emailPublicIdx > -1 && emailIdx > -1) {
+      const emailPublic = String(row[emailPublicIdx]).trim();
+      const email       = String(row[emailIdx]).trim();
+      if (emailPublic === "No" && email !== "[Private]") {
+        if (emailAdminIdx > -1 && !String(row[emailAdminIdx]).trim()) {
+          sheet.getRange(rowNum, emailAdminIdx+1).setValue(email);
+        }
+        sheet.getRange(rowNum, emailIdx+1).setValue("[Private]");
+        changed = true;
+      }
+    }
+
+    if (changed) fixed++;
+  });
+
+  SpreadsheetApp.getUi().alert("Done! Fixed " + fixed + " row(s).");
+}
+
+// ------------------------------------------------------------
 //  EMAIL NOTIFICATIONS
 // ------------------------------------------------------------
 function notifyAdmin(data) {

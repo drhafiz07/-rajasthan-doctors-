@@ -759,14 +759,27 @@ function buildCard(doc) {
   const placeholderHTML = `<div class="card-avatar-placeholder" ${photo ? 'style="display:none"' : ""}>${initials(name)}</div>`;
 
   // Show only first 3 non-skipped, non-empty columns
-  // Skip admin-only columns AND [Private] values in card preview
+  // Skip admin-only columns AND private values from card preview
   const cardHideCols = new Set(["Contact (Admin)","Mobile Public","Email (Admin)","Email Public","Status","Submitted At"]);
-  const previewCols = columns.filter(col =>
-    !skipKeys.has(col) &&
-    !cardHideCols.has(col) &&
-    doc[col] &&
-    doc[col] !== "[Private]"
-  ).slice(0, 3);
+
+  // Determine privacy using both [Private] value and Public/Private columns
+  const _mobilePublicCol = columns.find(c => /^mobile.?public$/i.test(c));
+  const _emailPublicCol  = columns.find(c => /^email.?public$/i.test(c));
+  const _contactCol      = columns.find(c => /^contact$/i.test(c));
+  const _emailColCard    = columns.find(c => /^email$/i.test(c));
+
+  const _mobileHide = (_contactCol && doc[_contactCol] === "[Private]") ||
+                      (_mobilePublicCol && doc[_mobilePublicCol] === "No");
+  const _emailHide  = (_emailColCard && doc[_emailColCard] === "[Private]") ||
+                      (_emailPublicCol && doc[_emailPublicCol] === "No");
+
+  const previewCols = columns.filter(col => {
+    if (skipKeys.has(col) || cardHideCols.has(col)) return false;
+    if (!doc[col] || doc[col] === "[Private]") return false;
+    if (_mobileHide && _contactCol && col === _contactCol) return false;
+    if (_emailHide  && _emailColCard && col === _emailColCard) return false;
+    return true;
+  }).slice(0, 3);
 
   const fieldRows = previewCols.map(col => {
     const m = getMeta(col);
@@ -833,27 +846,44 @@ function openModal(cardEl) {
   const adminCols = new Set(["Contact (Admin)","Mobile Public","Email (Admin)","Email Public","Status","Submitted At","_row"]);
   const skipKeys  = new Set([nameCol, photoCol, specCol].filter(Boolean));
 
-  // Check privacy for contact and email
-  const contactCol = columns.find(c => /^contact$/i.test(c));
-  const emailCol2  = columns.find(c => /^email$/i.test(c));
-  const isContactPrivate = contactCol && doc[contactCol] === "[Private]";
-  const isEmailPrivate   = emailCol2  && doc[emailCol2]  === "[Private]";
+  // Find all relevant columns
+  const contactCol      = columns.find(c => /^contact$/i.test(c));
+  const emailCol2       = columns.find(c => /^email$/i.test(c));
+  const mobilePublicCol = columns.find(c => /^mobile.?public$/i.test(c));
+  const emailPublicCol  = columns.find(c => /^email.?public$/i.test(c));
+
+  // Determine privacy — check BOTH [Private] value AND Mobile Public / Email Public columns
+  const isContactPrivate = (contactCol && doc[contactCol] === "[Private]") ||
+                           (mobilePublicCol && doc[mobilePublicCol] === "No");
+  const isEmailPrivate   = (emailCol2 && doc[emailCol2] === "[Private]") ||
+                           (emailPublicCol && doc[emailPublicCol] === "No");
 
   const privateNotice = [
     isContactPrivate ? `<div class="modal-field">
         <span class="modal-field-icon">📞</span>
         <span class="modal-field-label">Contact</span>
-        <span class="modal-field-value" style="color:var(--ink-3);font-style:italic">🔒 Private — not shown publicly</span>
+        <span class="modal-field-value" style="color:var(--ink-3);font-style:italic">🔒 Contact number is private</span>
       </div>` : "",
     isEmailPrivate ? `<div class="modal-field">
         <span class="modal-field-icon">✉️</span>
         <span class="modal-field-label">Email</span>
-        <span class="modal-field-value" style="color:var(--ink-3);font-style:italic">🔒 Private — not shown publicly</span>
+        <span class="modal-field-value" style="color:var(--ink-3);font-style:italic">🔒 Email is private</span>
       </div>` : ""
   ].join("");
 
+  // Filter: hide admin cols, hide [Private] values, hide private contact/email
   const fieldsHTML = columns
-    .filter(col => !skipKeys.has(col) && !adminCols.has(col) && doc[col] && String(doc[col]).trim() && doc[col] !== "[Private]")
+    .filter(col => {
+      if (skipKeys.has(col)) return false;
+      if (adminCols.has(col)) return false;
+      if (!doc[col] || !String(doc[col]).trim()) return false;
+      if (doc[col] === "[Private]") return false;
+      // Hide contact column if private
+      if (isContactPrivate && contactCol && col === contactCol) return false;
+      // Hide email column if private
+      if (isEmailPrivate && emailCol2 && col === emailCol2) return false;
+      return true;
+    })
     .map(col => {
       const m   = getMeta(col);
       const val = doc[col];
