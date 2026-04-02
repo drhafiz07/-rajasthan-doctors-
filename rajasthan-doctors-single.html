@@ -628,6 +628,11 @@ async function loadData() {
     renderCards();
     showSection("cards-grid");
 
+    // Cache successful load for offline fallback
+    try {
+      sessionStorage.setItem("rdd_cached_doctors", JSON.stringify({ columns, doctors: allDoctors }));
+    } catch(e) {}
+
     // Show My Profile button ONLY if logged-in user is an approved doctor
     const btn = document.getElementById("btn-myprofile");
     if (btn && window._rddUser) {
@@ -644,11 +649,29 @@ async function loadData() {
     }
 
   } catch (err) {
+    console.error("Fetch error:", err);
+    // Try cached data first before showing error
+    const cached = sessionStorage.getItem("rdd_cached_doctors");
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed.columns && parsed.doctors && parsed.doctors.length > 0) {
+          columns    = parsed.columns;
+          allDoctors = parsed.doctors;
+          buildFilterBar();
+          renderCards();
+          showSection("cards-grid");
+          const statsEl = document.getElementById("header-stats");
+          if (statsEl) statsEl.style.color = "rgba(255,165,0,.8)",
+                       statsEl.textContent  = allDoctors.length + " doctors · Offline (cached)";
+          return;
+        }
+      } catch(e) { console.log("Cache parse failed:", e); }
+    }
     showSection("error-state");
     document.getElementById("error-msg").textContent = err.message;
     document.getElementById("error-detail").textContent =
       "Sheet ID: " + SHEET_ID + " | Tab: " + SHEET_NAME;
-    console.error("Fetch error:", err);
   }
 }
 
@@ -769,13 +792,19 @@ function buildCard(doc) {
   const _emailColCard    = columns.find(c => /^email$/i.test(c));
 
   // Robust privacy check — handle any casing/spacing from CSV
-  const _isNo = v => String(v||"").trim().toLowerCase() === "no";
+  const _isNo      = v => { const s = String(v||"").trim().toLowerCase(); return s === "no" || s === "false" || s === "0"; };
+  const _isYes     = v => { const s = String(v||"").trim().toLowerCase(); return s === "yes" || s === "true" || s === "1"; };
   const _isPrivate = v => String(v||"").trim() === "[Private]";
 
-  const _mobileHide = _isPrivate(_contactCol ? doc[_contactCol] : "") ||
-                      _isNo(_mobilePublicCol ? doc[_mobilePublicCol] : "");
-  const _emailHide  = _isPrivate(_emailColCard ? doc[_emailColCard] : "") ||
-                      _isNo(_emailPublicCol ? doc[_emailPublicCol] : "");
+  // If Mobile Public = Yes, always show (overrides [Private] text from old data)
+  const _mobilePublicVal = _mobilePublicCol ? doc[_mobilePublicCol] : "";
+  const _emailPublicVal  = _emailPublicCol  ? doc[_emailPublicCol]  : "";
+  const _mobileHide = _isYes(_mobilePublicVal) ? false :
+                      (_isNo(_mobilePublicVal)  ? true  :
+                      _isPrivate(_contactCol ? doc[_contactCol] : ""));
+  const _emailHide  = _isYes(_emailPublicVal) ? false :
+                      (_isNo(_emailPublicVal)  ? true  :
+                      _isPrivate(_emailColCard ? doc[_emailColCard] : ""));
 
   const previewCols = columns.filter(col => {
     if (skipKeys.has(col) || cardHideCols.has(col)) return false;
@@ -857,13 +886,18 @@ function openModal(cardEl) {
   const emailPublicCol  = columns.find(c => /^email.?public$/i.test(c));
 
   // Robust privacy: check [Private] text AND public/private column
-  const _isNoVal = v => String(v||"").trim().toLowerCase() === "no";
+  const _isNoVal   = v => { const s = String(v||"").trim().toLowerCase(); return s === "no" || s === "false" || s === "0"; };
   const _isPrivVal = v => String(v||"").trim() === "[Private]";
 
-  const isContactPrivate = _isPrivVal(contactCol ? doc[contactCol] : "") ||
-                           _isNoVal(mobilePublicCol ? doc[mobilePublicCol] : "");
-  const isEmailPrivate   = _isPrivVal(emailCol2 ? doc[emailCol2] : "") ||
-                           _isNoVal(emailPublicCol ? doc[emailPublicCol] : "");
+  // If Mobile Public = Yes, always show (Yes takes priority over [Private])
+  const _mobPubVal  = mobilePublicCol  ? doc[mobilePublicCol]  : "";
+  const _emailPubVal = emailPublicCol  ? doc[emailPublicCol]   : "";
+  const isContactPrivate = _isNoVal(_mobPubVal) ? true  :
+                           (_isNoVal(_mobPubVal) === false && String(_mobPubVal).trim() ? false :
+                           _isPrivVal(contactCol ? doc[contactCol] : ""));
+  const isEmailPrivate   = _isNoVal(_emailPubVal) ? true  :
+                           (_isNoVal(_emailPubVal) === false && String(_emailPubVal).trim() ? false :
+                           _isPrivVal(emailCol2 ? doc[emailCol2] : ""));
 
   const privateNotice = [
     isContactPrivate ? `<div class="modal-field">
@@ -894,13 +928,18 @@ function openModal(cardEl) {
     .map(col => {
       const m   = getMeta(col);
       const val = doc[col];
-      const isSocial = m.social || /^https?:\/\//i.test(val);
+      // Format CV field labels nicely: Work1_Hospital → Work 1 Hospital
+      const label = /^(Work|Edu|Award|Pub)\d+_/i.test(col)
+        ? col.replace(/([A-Za-z]+)(\d+)_(.+)/, (_, t, n, f) =>
+            t + " " + n + " — " + f.replace(/_/g," "))
+        : (m.label || col);
+      const isSocial = m.social || /linkedin|twitter|facebook|instagram|youtube|website|practo|scholar/i.test(col) || /^https?:\/\//i.test(val);
       const valueHTML = isSocial
-        ? `<a href="${escHTML(val)}" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none;word-break:break-all">${escHTML(val)}</a>`
+        ? `<a href="${escHTML(val.startsWith('http') ? val : 'https://'+val)}" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:underline;word-break:break-all;font-weight:500">${escHTML(val)}</a>`
         : escHTML(val);
       return `<div class="modal-field">
         <span class="modal-field-icon">${m.icon}</span>
-        <span class="modal-field-label">${escHTML(m.label || col)}</span>
+        <span class="modal-field-label">${escHTML(label)}</span>
         <span class="modal-field-value">${valueHTML}</span>
       </div>`;
     }).join("");

@@ -163,6 +163,10 @@ function doPost(e) {
       // Notify doctor and delete from Pending
       if (dataObj["Email"]) notifyDoctor(dataObj["Email"], dataObj["Name"] || "", "approved");
       pending.deleteRow(pRow);
+
+      // Update Is Doctor = Yes in Users sheet
+      updateIsDoctorStatus(ss, dataObj["Email"] || dataObj["Email (Admin)"] || "", "Yes");
+
       return respond({ status: "ok", message: "Doctor approved and added to directory." });
     }
 
@@ -316,9 +320,11 @@ function doPost(e) {
         mainSheet.getRange(doctorRowNum, colIdx + 1).setValue(val);
       });
 
-      // Mark as Approved in Profile Updates
-      const statusIdx = updHdrs.indexOf("Status");
-      if (statusIdx > -1) updSheet.getRange(updRow, statusIdx + 1).setValue("Approved");
+      // Delete the approved row from Profile Updates (keeps sheet clean)
+      updSheet.deleteRow(updRow);
+
+      // Update Is Doctor = Yes in Users sheet
+      updateIsDoctorStatus(ss, email, "Yes");
 
       // Notify doctor
       if (email) notifyDoctor(email, payload.name || "", "update_approved");
@@ -336,8 +342,9 @@ function doPost(e) {
       const statusIdx = hdrs.indexOf("Status");
       const emailIdx  = hdrs.indexOf("Email");
       const nameIdx   = hdrs.indexOf("Name");
-      if (statusIdx > -1) updSheet.getRange(updRow, statusIdx + 1).setValue("Rejected");
       if (emailIdx  > -1 && rowData[emailIdx])  notifyDoctor(rowData[emailIdx], rowData[nameIdx] || "", "update_rejected");
+      // Delete rejected row to keep sheet clean
+      updSheet.deleteRow(updRow);
       return respond({ status: "ok", message: "Update rejected." });
     }
 
@@ -480,6 +487,24 @@ function notifyDoctor(email, name, status) {
     }
     if (subject && body) MailApp.sendEmail({ to: email, subject, body });
   } catch(e) { Logger.log("Doctor notify failed: " + e.message); }
+}
+
+function updateIsDoctorStatus(ss, email, status) {
+  try {
+    if (!email) return;
+    const usersSheet = ss.getSheetByName("Users");
+    if (!usersSheet || usersSheet.getLastRow() < 2) return;
+    const hdrs     = usersSheet.getRange(1,1,1,usersSheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
+    const emailIdx = hdrs.indexOf("Email");
+    const docIdx   = hdrs.indexOf("Is Doctor");
+    if (emailIdx === -1 || docIdx === -1) return;
+    const rows = usersSheet.getRange(2, 1, usersSheet.getLastRow()-1, usersSheet.getLastColumn()).getValues();
+    rows.forEach((row, i) => {
+      if (String(row[emailIdx]).toLowerCase().trim() === email.toLowerCase().trim()) {
+        usersSheet.getRange(i + 2, docIdx + 1).setValue(status);
+      }
+    });
+  } catch(e) { Logger.log("updateIsDoctorStatus failed: " + e.message); }
 }
 
 function respond(data) {
