@@ -791,6 +791,16 @@ function buildCard(doc) {
   const _contactCol      = columns.find(c => /^contact$/i.test(c));
   const _emailColCard    = columns.find(c => /^email$/i.test(c));
 
+  // DEBUG — remove after fixing
+  if (name && name !== "Unknown") {
+    console.log("PRIVACY DEBUG for", name, {
+      _mobilePublicCol, _contactCol,
+      mobilePublicVal: _mobilePublicCol ? doc[_mobilePublicCol] : "COL_NOT_FOUND",
+      contactVal: _contactCol ? doc[_contactCol] : "COL_NOT_FOUND",
+      allCols: columns
+    });
+  }
+
   // Robust privacy check — handle any casing/spacing from CSV
   const _isNo      = v => { const s = String(v||"").trim().toLowerCase(); return s === "no" || s === "false" || s === "0"; };
   const _isYes     = v => { const s = String(v||"").trim().toLowerCase(); return s === "yes" || s === "true" || s === "1"; };
