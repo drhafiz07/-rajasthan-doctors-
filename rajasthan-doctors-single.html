@@ -808,18 +808,28 @@ function buildCard(doc) {
 
   const previewCols = columns.filter(col => {
     if (skipKeys.has(col) || cardHideCols.has(col)) return false;
-    if (!doc[col] || doc[col] === "[Private]") return false;
-    if (_mobileHide && _contactCol && col === _contactCol) return false;
-    if (_emailHide  && _emailColCard && col === _emailColCard) return false;
+    if (!doc[col] || !String(doc[col]).trim()) return false;
+    // Contact: show if Mobile Public = Yes (even if value says [Private])
+    if (_contactCol && col === _contactCol) return !_mobileHide;
+    // Email: show if Email Public = Yes
+    if (_emailColCard && col === _emailColCard) return !_emailHide;
+    // Hide [Private] for all other fields
+    if (doc[col] === "[Private]") return false;
     return true;
   }).slice(0, 3);
 
   const fieldRows = previewCols.map(col => {
-    const m = getMeta(col);
+    const m   = getMeta(col);
+    // Show real contact if public (may be stored as [Private] in sheet)
+    let displayVal = doc[col];
+    if (col === _contactCol && _mobilePublicCol) {
+      const adminContactCol = columns.find(c => /contact.*admin/i.test(c));
+      if (adminContactCol && doc[adminContactCol]) displayVal = doc[adminContactCol];
+    }
     return `<div class="card-field">
       <span class="field-icon">${m.icon}</span>
       <span class="field-label">${escHTML(m.label || col)}</span>
-      <span class="field-value">${escHTML(doc[col])}</span>
+      <span class="field-value">${escHTML(displayVal)}</span>
     </div>`;
   }).join("");
 
@@ -890,14 +900,16 @@ function openModal(cardEl) {
   const _isPrivVal = v => String(v||"").trim() === "[Private]";
 
   // If Mobile Public = Yes, always show (Yes takes priority over [Private])
-  const _mobPubVal  = mobilePublicCol  ? doc[mobilePublicCol]  : "";
-  const _emailPubVal = emailPublicCol  ? doc[emailPublicCol]   : "";
-  const isContactPrivate = _isNoVal(_mobPubVal) ? true  :
-                           (_isNoVal(_mobPubVal) === false && String(_mobPubVal).trim() ? false :
-                           _isPrivVal(contactCol ? doc[contactCol] : ""));
-  const isEmailPrivate   = _isNoVal(_emailPubVal) ? true  :
-                           (_isNoVal(_emailPubVal) === false && String(_emailPubVal).trim() ? false :
-                           _isPrivVal(emailCol2 ? doc[emailCol2] : ""));
+  const _mobPubVal   = String(mobilePublicCol ? (doc[mobilePublicCol]||"") : "").trim().toLowerCase();
+  const _emailPubVal = String(emailPublicCol  ? (doc[emailPublicCol] ||"") : "").trim().toLowerCase();
+
+  // "yes" = show, "no" = hide, anything else = check [Private] text
+  const isContactPrivate = _mobPubVal === "yes" ? false :
+                           _mobPubVal === "no"  ? true  :
+                           _isPrivVal(contactCol ? (doc[contactCol]||"") : "");
+  const isEmailPrivate   = _emailPubVal === "yes" ? false :
+                           _emailPubVal === "no"  ? true  :
+                           _isPrivVal(emailCol2 ? (doc[emailCol2]||"") : "");
 
   const privateNotice = [
     isContactPrivate ? `<div class="modal-field">
@@ -912,22 +924,30 @@ function openModal(cardEl) {
       </div>` : ""
   ].join("");
 
-  // Filter: hide admin cols, hide [Private] values, hide private contact/email
+  // Filter: hide admin cols, handle privacy properly
   const fieldsHTML = columns
     .filter(col => {
       if (skipKeys.has(col)) return false;
       if (adminCols.has(col)) return false;
       if (!doc[col] || !String(doc[col]).trim()) return false;
+      // Contact column: controlled by isContactPrivate (not by [Private] text alone)
+      if (contactCol && col === contactCol) return !isContactPrivate;
+      // Email column: controlled by isEmailPrivate
+      if (emailCol2 && col === emailCol2) return !isEmailPrivate;
+      // All other fields: hide [Private]
       if (doc[col] === "[Private]") return false;
-      // Hide contact column if private
-      if (isContactPrivate && contactCol && col === contactCol) return false;
-      // Hide email column if private
-      if (isEmailPrivate && emailCol2 && col === emailCol2) return false;
       return true;
     })
     .map(col => {
       const m   = getMeta(col);
-      const val = doc[col];
+      // Get real value — for Contact column, use Contact (Admin) if available
+      let val = doc[col];
+      if (contactCol && col === contactCol && !isContactPrivate) {
+        const adminContact = columns.find(c => /contact.*admin/i.test(c));
+        if (adminContact && doc[adminContact] && doc[adminContact] !== "[Private]") {
+          val = doc[adminContact]; // show real number from admin column
+        }
+      }
       // Format CV field labels nicely: Work1_Hospital → Work 1 Hospital
       const label = /^(Work|Edu|Award|Pub)\d+_/i.test(col)
         ? col.replace(/([A-Za-z]+)(\d+)_(.+)/, (_, t, n, f) =>
